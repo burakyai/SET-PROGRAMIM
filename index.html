@@ -131,6 +131,23 @@ input:focus{border-color:var(--accent)}
 .toast{position:fixed;left:50%;top:calc(16px + var(--safe-t));transform:translate(-50%,-140%);z-index:60;background:#26241f;border:1px solid #3a3733;padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:600;transition:transform .25s;max-width:90vw;text-align:center}
 .toast.on{transform:translate(-50%,0)}
 
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px;margin-top:12px}
+.seg button{flex:1;height:32px;border-radius:8px;font-size:13px;font-weight:700;color:var(--mute)}
+.seg button.on{background:var(--panel2);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.scene.other{background:transparent;border-style:dashed;padding:9px 12px}
+.scene.other .no{background:transparent;width:64px}
+.scene.other .no b{color:var(--mute);font-size:15px}
+.scene.other .set{font-size:13px;color:#bdb6aa;font-weight:600}
+.scene.other .sum{color:var(--dim)}
+.scene.mine{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.teamhead{font-size:11px;font-weight:800;color:var(--mute);letter-spacing:.6px;margin:14px 2px -2px}
+.trash{width:36px;height:36px;border-radius:10px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center}
+.trash svg{width:17px;height:17px}
+.prog{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-top:8px}
+.prog .pi{flex:1;min-width:0}
+.prog .pn{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog .pd{font-size:12px;color:var(--mute);margin-top:3px}
+.prog button{color:var(--red);font-weight:700;font-size:13px;padding:8px 10px;border-radius:9px;border:1px solid #4a2522;flex:none}
 .welcome{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px}
 .welcome h3{margin:0 0 8px;font-size:17px}
 .welcome ol{margin:0;padding-left:18px;color:#cfc8bd;font-size:14px;line-height:1.7}
@@ -150,12 +167,14 @@ input:focus{border-color:var(--accent)}
   <div class="weekbar">
     <div><div class="lbl" id="weekLbl">Bu hafta</div><div class="sub" id="weekSub"></div></div>
     <div class="arrows">
+      <button class="trash" id="btnManage" aria-label="Programları yönet"><svg viewBox="0 0 24 24" fill="none" stroke="#ff5a4e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>
       <button class="arr today" id="btnToday">Bugün</button>
       <button class="arr" id="btnPrev" aria-label="Önceki hafta">‹</button>
       <button class="arr" id="btnNext" aria-label="Sonraki hafta">›</button>
     </div>
   </div>
   <div class="strip" id="strip"></div>
+  <div class="seg" id="seg"><button data-v="mine">Benim sahnelerim</button><button data-v="all">Tüm program</button></div>
 </header>
 
 <main id="main"></main>
@@ -204,6 +223,11 @@ input:focus{border-color:var(--accent)}
   <p class="hint">Programda adın nasıl geçiyorsa öyle yaz. Lakap veya oyuncu numarası da varsa ekleyebilirsin (ör. "Oruç, Oruç Furtuna, 1").</p>
   <input type="text" id="charIn2" autocomplete="off" autocapitalize="words">
   <button class="btn" id="btnCharSave">Kaydet</button>
+</div>
+
+<div class="sheet" id="manSheet">
+  <div class="grab"></div>
+  <div id="manBody"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -424,7 +448,7 @@ function filterForCharacter(result, charInput){
       const mine=(d.castCalls||[]).find(c=>castMatches(c.character,names)||castMatches(c.actor,names));
       return {
       date:d.date, dayLabel:d.dayLabel, callTime:(mine&&mine.time)||d.callTime, setTime:d.callTime, totalScenes:d.totalScenes,
-      actorName:mine?mine.actor:"", allScenes:d.scenes.map(s=>({order:s.order,team:s.team})),
+      actorName:mine?mine.actor:"", allScenes:d.scenes.map(s=>Object.assign({},s,{characters:splitCast(s.cast), mine:castMatches(s.cast,names)})),
       scenes:d.scenes.filter(s=>castMatches(s.cast,names)).map(s=>{
         const raw=String(s.cast||"").split(/\s*-\s*|\s*,\s*|\s*\/\s*/).map(x=>x.trim()).filter(Boolean);
         const unc=raw.some(tok=>/\?/.test(tok) && castMatches(tok.replace(/\?/g,""),names));
@@ -454,7 +478,8 @@ const S = {
   weekStart: mondayOf(new Date()),
   selected: iso(new Date()),
   files: [],
-  busy: false
+  busy: false,
+  view: (()=>{ try{ return localStorage.getItem("setprog.view")||"mine"; }catch(e){ return "mine"; } })()
 };
 
 /* ---------- date helpers ---------- */
@@ -524,6 +549,34 @@ function shortNo(no){
   if(parts.length<=2 && String(no).length<=7) return {txt:String(no||"?"),cnt:""};
   return {txt:parts[0]+"…"+parts[parts.length-1], cnt:parts.length+" parça"};
 }
+function sceneLine(s){
+  const ln=[];
+  if(s.intExt) ln.push(esc(s.intExt));
+  if(s.dayNight) ln.push(`<span class="dn-ic">${dnIcon(s.dayNight)}</span> ${esc(s.dayNight)}`);
+  if(s.pages) ln.push(esc(s.pages)+" sf");
+  return ln;
+}
+function noBox(s){ const n=shortNo(s.sceneNo); const c=n.txt.length>7?"s":n.txt.length>4?"m":""; return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`; }
+function renderAll(k,day){
+  let h=""; let lastTeam=null;
+  const mineIdx={}; (day.scenes||[]).forEach((s,i)=>{ mineIdx[s.sceneNo+"|"+s.team]=i; });
+  day.all.forEach((s,i)=>{
+    if(s.team!==lastTeam){ lastTeam=s.team; if(s.team) h+=`<div class="teamhead">${esc(s.team)}</div>`; }
+    const mi=mineIdx[s.sceneNo+"|"+s.team];
+    const done = mi!==undefined && day.scenes[mi].done;
+    const ln=sceneLine(s);
+    if(s.mine){
+      h+=`<button class="scene mine${done?" done":""}" data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
+        <div class="body"><div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
+        ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}</div><div class="chev">›</div></button>`;
+    } else {
+      h+=`<button class="scene other" data-scene="${k}|a${i}">${noBox(s)}
+        <div class="body"><div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
+        ${s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:""}</div><div class="chev">›</div></button>`;
+    }
+  });
+  return h;
+}
 function render(){
   const dates=weekDates(); const today=iso(new Date());
   const a=dates[0], b=dates[6];
@@ -532,6 +585,7 @@ function render(){
   $("#weekLbl").textContent = ws===thisMon ? "Bu hafta" : (ws===iso(addDays(mondayOf(new Date()),7)) ? "Gelecek hafta" : (ws===iso(addDays(mondayOf(new Date()),-7)) ? "Geçen hafta" : "Hafta"));
   $("#weekSub").textContent = a.getDate()+" "+(a.getMonth()!==b.getMonth()?TR_MON[a.getMonth()]+" ":"")+"– "+b.getDate()+" "+TR_MON[b.getMonth()]+" "+b.getFullYear();
   $("#charChip").textContent = S.character ? "🎭 "+S.character : "Karakter adını gir";
+  document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.view));
 
   // strip
   $("#strip").innerHTML = dates.map(d=>{
@@ -566,6 +620,7 @@ function render(){
     }
     html += `</div>${day?`<button class="dots" data-daymenu="${k}" aria-label="Gün seçenekleri">⋯</button>`:""}</div>`;
     if(!day){ html += `<div class="empty">Program yüklenmedi</div>`; }
+    else if(S.view==="all" && day.all?.length){ html += renderAll(k,day); }
     else if(!day.scenes?.length){ html += `<div class="empty">Bu gün senin sahnen yok 🎉</div>`; }
     else {
       day.scenes.forEach((s,i)=>{
@@ -613,16 +668,50 @@ function scrollToDay(k){ const el=document.getElementById("day-"+k); if(el){ con
 
 $("#main").addEventListener("click",e=>{
   const sc=e.target.closest("[data-scene]");
-  if(sc){ const [k,i]=sc.dataset.scene.split("|"); showScene(k,+i); return; }
+  if(sc){ const [k,i]=sc.dataset.scene.split("|"); showScene(k, i[0]==="a"?i:+i); return; }
   const dm=e.target.closest("[data-daymenu]");
   if(dm){ showDayMenu(dm.dataset.daymenu); }
 });
+
+$("#seg").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; S.view=b.dataset.v; try{ localStorage.setItem("setprog.view",S.view); }catch(_){}
+  render(); if(S.view==="all" && !Object.values(S.days).some(d=>d.all?.length) && Object.keys(S.days).length) toast("Tüm programı görmek için programı bir kez yeniden yükle",4000); });
+
+function programs(){
+  const g={};
+  Object.values(S.days).forEach(d=>{ const key=d.sourceName||"Bilinmeyen kaynak"; (g[key]=g[key]||[]).push(d); });
+  return Object.entries(g).map(([name,days])=>({name,days:days.sort((a,b)=>a.date<b.date?-1:1)})).sort((a,b)=>a.days[0].date<b.days[0].date?1:-1);
+}
+function fmtD(k){ const d=parseIso(k); return d.getDate()+" "+TR_MON[d.getMonth()]; }
+function showManage(){
+  const ps=programs();
+  $("#manBody").innerHTML = `<h2>Yüklenen programlar</h2>
+    <p class="hint">${ps.length?"Bir programı silince o programdan gelen bütün günler kalkar.":"Henüz program yüklenmedi."}</p>
+    ${ps.map((p,i)=>{ const sc=p.days.reduce((a,d)=>a+(d.scenes?.length||0),0);
+      return `<div class="prog"><div class="pi"><div class="pn">📄 ${esc(p.name)}</div><div class="pd">${fmtD(p.days[0].date)}${p.days.length>1?" – "+fmtD(p.days[p.days.length-1].date):""} · ${p.days.length} gün · ${sc} sahnen</div></div><button data-delp="${i}">Sil</button></div>`; }).join("")}
+    ${ps.length>1?`<button class="btn danger" id="delAll">Tüm programları sil</button>`:""}`;
+  $("#manBody").onclick=async e=>{
+    const b=e.target.closest("[data-delp]"); if(b){
+      if(!b.dataset.sure){ b.dataset.sure="1"; b.textContent="Emin misin?"; return; }
+      const p=ps[+b.dataset.delp]; b.disabled=true;
+      try{ for(const d of p.days) await Store.delDay(d.date); toast(`${p.days.length} gün silindi`); }catch(_){ toast("Silinemedi"); }
+      showManage(); return;
+    }
+    if(e.target.id==="delAll"){
+      const x=e.target; if(!x.dataset.sure){ x.dataset.sure="1"; x.textContent="Emin misin? Hepsi silinecek"; return; }
+      try{ for(const k of Object.keys(S.days)) await Store.delDay(k); toast("Hepsi silindi"); }catch(_){ toast("Silinemedi"); }
+      closeSheet();
+    }
+  };
+  openSheet($("#manSheet"));
+}
+$("#btnManage").onclick=showManage;
 
 $("#charChip").onclick=()=>{ $("#charIn2").value=S.character; openSheet($("#charSheet")); };
 $("#btnCharSave").onclick=async()=>{ const v=$("#charIn2").value.trim(); closeSheet(); try{ await Store.setChar(v); toast("Kaydedildi"); }catch(e){ toast("Kaydedilemedi"); } };
 
 function showScene(k,i){
-  const day=S.days[k]; const s=day?.scenes?.[i]; if(!s) return;
+  const day=S.days[k]; const isAll=typeof i==="string" && i[0]==="a";
+  const s= isAll ? day?.all?.[+i.slice(1)] : day?.scenes?.[+i]; if(!s) return;
   const d=parseIso(k);
   const me=(S.character||"").toLocaleLowerCase("tr").split(",").map(x=>x.trim()).filter(Boolean);
   const isMe = c => me.some(m=>c.toLocaleLowerCase("tr").includes(m));
@@ -640,8 +729,8 @@ function showScene(k,i){
     <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(s.synopsis):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
-    <button class="btn" id="btnDone">${s.done?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
-  $("#btnDone").onclick=async()=>{
+    ${isAll?"":`<button class="btn" id="btnDone">${s.done?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`}`;
+  if(!isAll) $("#btnDone").onclick=async()=>{
     const copy=JSON.parse(JSON.stringify(day)); copy.scenes[i].done=!s.done; closeSheet();
     try{ await Store.putDay(k,copy); }catch(e){ toast("Kaydedilemedi"); }
   };
@@ -653,7 +742,13 @@ function showDayMenu(k){
   $("#dayBody").innerHTML = `<h2>${TR_DAYS[d.getDay()]}, ${d.getDate()} ${TR_MON[d.getMonth()]}</h2>
     <p class="hint">${day?.sourceName?("Kaynak: "+esc(day.sourceName)):""}</p>
     <button class="btn ghost" id="dmCopy">Sahne listesini kopyala</button>
-    <button class="btn danger" id="dmDel">Bu günün programını sil</button>`;
+    <button class="btn danger" id="dmDel">Bu günü sil</button>
+    ${day?.sourceName?`<button class="btn danger" id="dmDelP">Bu programın tamamını sil</button>`:""}`;
+  const dp=$("#dmDelP"); if(dp) dp.onclick=async()=>{
+    if(!dp.dataset.sure){ dp.dataset.sure="1"; dp.textContent="Emin misin? Tekrar dokun"; return; }
+    const ks=Object.values(S.days).filter(x=>x.sourceName===day.sourceName).map(x=>x.date);
+    closeSheet(); try{ for(const x of ks) await Store.delDay(x); toast(ks.length+" gün silindi"); }catch(e){ toast("Silinemedi"); }
+  };
   $("#dmCopy").onclick=async()=>{
     const lines=[`${TR_DAYS[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()]}${day.callTime?" – Call "+day.callTime:""}`];
     (day.scenes||[]).forEach(s=>lines.push(`Sh. ${s.sceneNo} – ${s.set||""}${s.dayNight?" ("+s.dayNight+")":""}`));
@@ -812,7 +907,7 @@ function localToDay(d, srcName, prev, replace){
   // per-team shooting order: count rows within each EKİP across the whole day
   const teamPos={}; const posByOrder={}; const teamTotal={};
   (d.allScenes||[]).forEach(s=>{ const t=s.team||""; teamPos[t]=(teamPos[t]||0)+1; posByOrder[s.order]=teamPos[t]; teamTotal[t]=teamPos[t]; });
-  const scenes=d.scenes.map(s=>{
+  const conv=s=>{
     const t=tod(s.timeOfDay);
     const extra=[];
     if(s.blm) extra.push("Bölüm: "+s.blm+(s.storyDay?" · Gün "+s.storyDay:""));
@@ -823,12 +918,14 @@ function localToDay(d, srcName, prev, replace){
     if(s.uncertain) extra.push("⚠️ Programda adının yanında soru işareti var; teyit et.");
     return { sceneNo:s.sceneNo||"?", set:s.set||"", intExt:t.intExt, dayNight:t.dayNight, pages:s.pages||"", time:"", order: posByOrder[s.order] ? posByOrder[s.order]+" / "+teamTotal[s.team||""] : "",
       team:(s.team||"").replace(/\s+/g,"").replace("EKİP"," EKİP"), characters:s.characters||[], synopsis:s.synopsis||"", extra:extra.join("\n"), uncertain:!!s.uncertain, done:false };
-  });
+  };
+  const scenes=d.scenes.map(conv);
+  const all=(d.allScenes||[]).map(x=>{ const c=conv(x); c.mine=!!x.mine; delete c.done; delete c.uncertain; return c; });
   let finalScenes=scenes;
   if(prev && !replace){ const seen=new Set(prev.scenes.map(x=>x.sceneNo)); finalScenes=[...prev.scenes, ...scenes.filter(x=>!seen.has(x.sceneNo))]; }
   else if(prev){ const doneMap=Object.fromEntries((prev.scenes||[]).map(x=>[x.sceneNo,x.done])); finalScenes.forEach(x=>{ if(doneMap[x.sceneNo]) x.done=true; }); }
   return { date:d.date, shootDay:"", dayLabel:d.dayLabel||"", callTime:d.callTime||"", setTime:d.setTime||"", location:"", totalScenes:d.totalScenes||0, notes:"",
-    scenes:finalScenes, sourceName:srcName, parsedBy:"local", updatedAt:new Date().toISOString() };
+    scenes:finalScenes, all, sourceName:srcName, parsedBy:"local", updatedAt:new Date().toISOString() };
 }
 
 async function pdfToPages(file){
