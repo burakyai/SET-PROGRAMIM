@@ -448,7 +448,7 @@ function filterForCharacter(result, charInput){
       const mine=(d.castCalls||[]).find(c=>castMatches(c.character,names)||castMatches(c.actor,names));
       return {
       date:d.date, dayLabel:d.dayLabel, callTime:(mine&&mine.time)||d.callTime, setTime:d.callTime, totalScenes:d.totalScenes,
-      actorName:mine?mine.actor:"", allScenes:d.scenes.map(s=>Object.assign({},s,{characters:splitCast(s.cast), mine:castMatches(s.cast,names)})),
+      actorName:mine?mine.actor:"", castCalls:d.castCalls||[], allScenes:d.scenes.map(s=>Object.assign({},s,{characters:splitCast(s.cast), mine:castMatches(s.cast,names)})),
       scenes:d.scenes.filter(s=>castMatches(s.cast,names)).map(s=>{
         const raw=String(s.cast||"").split(/\s*-\s*|\s*,\s*|\s*\/\s*/).map(x=>x.trim()).filter(Boolean);
         const unc=raw.some(tok=>/\?/.test(tok) && castMatches(tok.replace(/\?/g,""),names));
@@ -519,9 +519,22 @@ const Store = {
   },
   localSave(){ try{ localStorage.setItem("setprog.v1", JSON.stringify({days:S.days,character:S.character})); }catch(e){} },
   async setChar(name){
-    S.character=name; render();
-    if(this.mode==="db") await this.db.collection("data/users/"+this.uid).doc("settings").set({character:name});
-    else this.localSave();
+    const changed = name!==S.character;
+    S.character=name;
+    let redone=0, stale=0;
+    if(changed){
+      for(const [k,day] of Object.entries(S.days)){
+        const nd=rematchDay(day,name);
+        if(nd){ S.days[k]=nd; redone++; } else stale++;
+      }
+    }
+    render();
+    if(this.mode==="db"){
+      const col=this.db.collection("data/users/"+this.uid);
+      await col.doc("settings").set({character:name});
+      if(changed) for(const [k,day] of Object.entries(S.days)) if(day.all?.length) await col.doc("d-"+k).set(day);
+    } else this.localSave();
+    return {redone,stale};
   },
   async putDay(date,obj){
     S.days[date]=obj; render();
@@ -707,7 +720,11 @@ function showManage(){
 $("#btnManage").onclick=showManage;
 
 $("#charChip").onclick=()=>{ $("#charIn2").value=S.character; openSheet($("#charSheet")); };
-$("#btnCharSave").onclick=async()=>{ const v=$("#charIn2").value.trim(); closeSheet(); try{ await Store.setChar(v); toast("Kaydedildi"); }catch(e){ toast("Kaydedilemedi"); } };
+$("#btnCharSave").onclick=async()=>{ const v=$("#charIn2").value.trim(); closeSheet();
+  try{ const r=await Store.setChar(v);
+    if(r.redone||r.stale) toast(`${v||"Karakter"} için sahneler yeniden seçildi`+(r.stale?` · ${r.stale} gün için programı yeniden yükle`:""), r.stale?5000:2600);
+    else toast("Kaydedildi");
+  }catch(e){ toast("Kaydedilemedi"); } };
 
 function showScene(k,i){
   const day=S.days[k]; const isAll=typeof i==="string" && i[0]==="a";
@@ -903,6 +920,25 @@ function tod(t){ // "İÇ/DIŞ/GÜN" -> {intExt:"İÇ/DIŞ", dayNight:"GÜN"}
   parts.forEach(x=>{ if(/^(GÜN|GECE|AKŞAM|SABAH|ÜGN|GUN)$/i.test(x)) dn.push(x.replace(/ÜGN/,"GÜN")); else ie.push(x); });
   return {intExt:ie.join("/"), dayNight:dn.join("/")};
 }
+function rematchDay(day,charInput){
+  if(!day?.all?.length) return null;
+  const P=window.SetParser; const names=String(charInput||"").split(",").map(x=>x.trim()).filter(Boolean);
+  const doneMap={}; (day.scenes||[]).forEach(x=>{ if(x.done) doneMap[x.sceneNo+"|"+(x.team||"")]=true; });
+  const all=day.all.map(a=>{ const cast=a.cast||(a.characters||[]).join("-"); return Object.assign({},a,{mine:names.length?P.castMatches(cast,names):false}); });
+  const scenes=all.filter(a=>a.mine).map(a=>{
+    const cast=a.cast||(a.characters||[]).join("-");
+    const unc=cast.split(/\s*-\s*|\s*,\s*|\s*\/\s*/).some(t=>/\?/.test(t)&&P.castMatches(t.replace(/\?/g,""),names));
+    const o=Object.assign({},a); delete o.mine;
+    o.uncertain=unc; o.done=!!doneMap[a.sceneNo+"|"+(a.team||"")];
+    o.extra=[o.extra, unc?"⚠️ Programda adının yanında soru işareti var; teyit et.":""].filter(Boolean).join("\n");
+    return o;
+  });
+  let callTime=day.setTime||day.callTime||"";
+  const mine=(day.castCalls||[]).find(c=>P.castMatches(c.character,names)||P.castMatches(c.actor,names));
+  if(mine&&mine.time) callTime=mine.time;
+  if(!day.castCalls) callTime=day.callTime;
+  return Object.assign({},day,{all,scenes,callTime,setTime:day.setTime||day.callTime||""});
+}
 function localToDay(d, srcName, prev, replace){
   // per-team shooting order: count rows within each EKİP across the whole day
   const teamPos={}; const posByOrder={}; const teamTotal={};
@@ -920,12 +956,12 @@ function localToDay(d, srcName, prev, replace){
       team:(s.team||"").replace(/\s+/g,"").replace("EKİP"," EKİP"), characters:s.characters||[], synopsis:s.synopsis||"", extra:extra.join("\n"), uncertain:!!s.uncertain, done:false };
   };
   const scenes=d.scenes.map(conv);
-  const all=(d.allScenes||[]).map(x=>{ const c=conv(x); c.mine=!!x.mine; delete c.done; delete c.uncertain; return c; });
+  const all=(d.allScenes||[]).map(x=>{ const c=conv(x); c.mine=!!x.mine; c.cast=x.cast||""; delete c.done; delete c.uncertain; c.extra=c.extra.split("\n").filter(l=>!l.startsWith("⚠️")).join("\n"); return c; });
   let finalScenes=scenes;
   if(prev && !replace){ const seen=new Set(prev.scenes.map(x=>x.sceneNo)); finalScenes=[...prev.scenes, ...scenes.filter(x=>!seen.has(x.sceneNo))]; }
   else if(prev){ const doneMap=Object.fromEntries((prev.scenes||[]).map(x=>[x.sceneNo,x.done])); finalScenes.forEach(x=>{ if(doneMap[x.sceneNo]) x.done=true; }); }
   return { date:d.date, shootDay:"", dayLabel:d.dayLabel||"", callTime:d.callTime||"", setTime:d.setTime||"", location:"", totalScenes:d.totalScenes||0, notes:"",
-    scenes:finalScenes, all, sourceName:srcName, parsedBy:"local", updatedAt:new Date().toISOString() };
+    scenes:finalScenes, all, castCalls:d.castCalls||[], sourceName:srcName, parsedBy:"local", updatedAt:new Date().toISOString() };
 }
 
 async function pdfToPages(file){
