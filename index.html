@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0e0d0c">
+<meta http-equiv="Cache-Control" content="no-cache">
 <title>Set Programım</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1117,9 +1118,26 @@ $("#btnParse").onclick=async()=>{
   }
 };
 
+/* ---------- auto update (GitHub Pages) ---------- */
+const APP_VERSION="2026.11.02-3";
+async function checkUpdate(){
+  if(!/github\.io$/.test(location.hostname)) return;
+  try{
+    const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok) return;
+    const {version}=await r.json();
+    if(version && version!==APP_VERSION){
+      const u=new URL(location.href); u.searchParams.set("v",version); u.hash="";
+      location.replace(u.toString());
+    }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && !S.busy) checkUpdate(); });
+
 /* boot */
 render();
 Store.init();
+checkUpdate();
 })();
 </script>
 </body>
