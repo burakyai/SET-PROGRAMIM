@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0d0c">
+<title>Set Programım</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Set Programım">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0d0c; --panel:#171615; --panel2:#201f1d; --line:#2c2a27;
+  --ink:#f3efe8; --mute:#9a948a; --dim:#6b665e;
+  --accent:#f5c518; --accent-ink:#1a1500; --red:#ff5a4e; --green:#46c27a; --blue:#6aa8ff;
+  --r:16px;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,-apple-system,sans-serif}
+body{min-height:100vh;padding-bottom:calc(110px + var(--safe-b))}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+/* header */
+header{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 85%,transparent);padding:calc(14px + var(--safe-t)) 18px 8px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:10px}
+.clap{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
+.clap svg{width:20px;height:20px}
+h1{font-size:19px;font-weight:800;margin:0;letter-spacing:-.2px}
+.charchip{font-size:12px;font-weight:600;padding:7px 11px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--accent);max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weekbar{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.weekbar .lbl{font-size:15px;font-weight:700}
+.weekbar .sub{font-size:12px;color:var(--mute);margin-top:2px}
+.arrows{display:flex;gap:6px}
+.arr{width:36px;height:36px;border-radius:10px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;font-size:18px}
+.arr.today{width:auto;padding:0 12px;font-size:12px;font-weight:700}
+
+/* day strip */
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px}
+.dp{border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:8px 0 7px;text-align:center;position:relative}
+.dp .dn{font-size:10.5px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.dp .dd{font-size:17px;font-weight:800;margin-top:2px}
+.dp .cnt{font-size:10px;font-weight:700;margin-top:3px;color:var(--dim)}
+.dp.has .cnt{color:var(--accent)}
+.dp.isToday{border-color:var(--accent)}
+.dp.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.dp.sel .dn,.dp.sel .cnt{color:var(--accent-ink)}
+
+main{padding:6px 18px 0}
+.day{margin-top:18px;scroll-margin-top:200px}
+.dayhead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:0 2px 8px;border-bottom:1px solid var(--line)}
+.dayhead .t{font-size:17px;font-weight:800}
+.dayhead .t small{font-weight:500;color:var(--mute);font-size:13px;margin-left:6px}
+.dayhead .meta{font-size:12px;color:var(--mute);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 8px;border-radius:7px;background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.tag.y{color:var(--accent)}
+.dots{width:32px;height:32px;border-radius:9px;color:var(--mute);font-size:18px;flex:none}
+.empty{font-size:13px;color:var(--dim);padding:12px 2px}
+.daynote{font-size:12.5px;color:var(--mute);background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:9px 11px;margin-top:10px;line-height:1.45}
+
+.scene{display:flex;gap:12px;align-items:stretch;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:10px;width:100%;text-align:left;transition:transform .08s}
+.scene:active{transform:scale(.985)}
+.scene .no{min-width:58px;border-radius:11px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px}
+.scene .no b{font-family:"JetBrains Mono",monospace;font-size:20px;font-weight:700;color:var(--accent);line-height:1}
+.scene .no span{font-size:9.5px;color:var(--mute);margin-top:4px;letter-spacing:.5px;text-transform:uppercase}
+.scene .body{flex:1;min-width:0}
+.scene .set{font-size:14.5px;font-weight:700;line-height:1.25}
+.scene .ln{font-size:12px;color:var(--mute);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.scene .sum{font-size:12.5px;color:#c9c3b8;margin-top:6px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.scene.done{opacity:.5}
+.scene.done .no b{text-decoration:line-through}
+.chev{color:var(--dim);align-self:center;font-size:18px}
+.dn-ic{font-size:11px}
+
+/* fab */
+.fab{position:fixed;left:18px;right:18px;bottom:calc(16px + var(--safe-b));z-index:30;height:56px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.fab svg{width:20px;height:20px}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#141312;border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 20px calc(22px + var(--safe-b));max-height:88vh;overflow:auto;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.sheet.on{transform:none}
+.grab{width:40px;height:5px;border-radius:9px;background:#3a3733;margin:0 auto 14px}
+.sheet h2{font-size:20px;margin:0 0 4px;font-weight:800}
+.sheet .hint{font-size:13px;color:var(--mute);margin:0 0 16px;line-height:1.45}
+label.f{display:block;font-size:12px;font-weight:700;color:var(--mute);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.5px}
+input[type=text],input[type=date]{width:100%;height:50px;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font:inherit;font-size:16px;padding:0 14px;outline:none;-webkit-appearance:none}
+input:focus{border-color:var(--accent)}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1.5px dashed #45413b;border-radius:14px;padding:22px 12px;text-align:center;background:var(--panel)}
+.drop b{font-size:15px}
+.drop span{font-size:12px;color:var(--mute)}
+.files{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.file{display:flex;align-items:center;justify-content:space-between;font-size:13px;background:var(--panel2);border-radius:10px;padding:8px 10px}
+.file button{color:var(--mute);font-size:16px;padding:0 4px}
+.btn{width:100%;height:54px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:16px;margin-top:18px}
+.btn:disabled{opacity:.4}
+.btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line);margin-top:10px}
+.btn.danger{background:transparent;color:var(--red);border:1px solid #4a2522;margin-top:10px}
+.status{margin-top:14px;font-size:13px;color:var(--mute);display:none;align-items:center;gap:10px;line-height:1.4}
+.status.on{display:flex}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid #3a3733;border-top-color:var(--accent);animation:sp 0.8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:var(--red)}
+.check{display:flex;gap:10px;align-items:center;font-size:13.5px;margin-top:12px;color:var(--ink)}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+
+/* scene detail */
+.sd-top{display:flex;align-items:center;gap:14px}
+.sd-no{font-family:"JetBrains Mono",monospace;font-size:34px;font-weight:700;color:var(--accent);line-height:1}
+.sd-k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.6px}
+.sd-set{font-size:18px;font-weight:800;margin-top:14px;line-height:1.3}
+.sd-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sd-sec{margin-top:18px}
+.sd-sec h3{font-size:11.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.6px;margin:0 0 6px}
+.sd-sec p{margin:0;font-size:15.5px;line-height:1.55;color:#e9e3d9;white-space:pre-wrap}
+.chars{display:flex;flex-wrap:wrap;gap:6px}
+.chars span{font-size:12.5px;padding:5px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.chars span.me{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+
+.toast{position:fixed;left:50%;top:calc(16px + var(--safe-t));transform:translate(-50%,-140%);z-index:60;background:#26241f;border:1px solid #3a3733;padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:600;transition:transform .25s;max-width:90vw;text-align:center}
+.toast.on{transform:translate(-50%,0)}
+
+.welcome{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px}
+.welcome h3{margin:0 0 8px;font-size:17px}
+.welcome ol{margin:0;padding-left:18px;color:#cfc8bd;font-size:14px;line-height:1.7}
+.menu{display:flex;flex-direction:column;gap:0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top">
+    <div class="brand">
+      <div class="clap"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1500" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 11 3.3 7.2a1 1 0 0 1 .8-1.2L17.6 3.6a1 1 0 0 1 1.2.8L19.3 7 4 11"/><path d="m8.5 5.6 2.6 3.6M13.4 4.7l2.6 3.6"/></svg></div>
+      <h1>Set Programım</h1>
+    </div>
+    <button class="charchip" id="charChip">Karakter: —</button>
+  </div>
+  <div class="weekbar">
+    <div><div class="lbl" id="weekLbl">Bu hafta</div><div class="sub" id="weekSub"></div></div>
+    <div class="arrows">
+      <button class="arr today" id="btnToday">Bugün</button>
+      <button class="arr" id="btnPrev" aria-label="Önceki hafta">‹</button>
+      <button class="arr" id="btnNext" aria-label="Sonraki hafta">›</button>
+    </div>
+  </div>
+  <div class="strip" id="strip"></div>
+</header>
+
+<main id="main"></main>
+
+<button class="fab" id="fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>Program Yükle</button>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- upload sheet -->
+<div class="sheet" id="upSheet">
+  <div class="grab"></div>
+  <h2>Set programını yükle</h2>
+  <p class="hint">Set programı PDF'ini seç; telefonun içinde anında okunur, hiçbir yere gönderilmez. Fotoğraf/ekran görüntüsü yüklersen yapay zekâ ile okunur.</p>
+  <label class="f" for="charIn">Karakter adın</label>
+  <input type="text" id="charIn" placeholder="ör. Oruç" autocomplete="off" autocapitalize="words">
+  <label class="f">Program dosyası</label>
+  <label class="drop" for="fileIn">
+    <b>＋ PDF veya görsel seç</b>
+    <span>Birden fazla sayfa/fotoğraf seçebilirsin</span>
+  </label>
+  <input type="file" id="fileIn" accept="application/pdf,image/*" multiple hidden>
+  <div class="files" id="fileList"></div>
+  <label class="f" for="fallbackDate">Tarih okunamazsa hangi gün? (genelde gerekmez)</label>
+  <input type="date" id="fallbackDate">
+  <label class="check"><input type="checkbox" id="replaceChk" checked> Aynı günün eski programını yenisiyle değiştir</label>
+  <button class="btn" id="btnParse" disabled>Programı Oku</button>
+  <div class="status" id="status"><div class="spin"></div><div id="statusTxt">Okunuyor…</div></div>
+</div>
+
+<!-- scene sheet -->
+<div class="sheet" id="sceneSheet">
+  <div class="grab"></div>
+  <div id="sceneBody"></div>
+</div>
+
+<!-- day menu sheet -->
+<div class="sheet" id="daySheet">
+  <div class="grab"></div>
+  <div id="dayBody"></div>
+</div>
+
+<!-- character sheet -->
+<div class="sheet" id="charSheet">
+  <div class="grab"></div>
+  <h2>Karakter adın</h2>
+  <p class="hint">Programda adın nasıl geçiyorsa öyle yaz. Lakap veya oyuncu numarası da varsa ekleyebilirsin (ör. "Oruç, Oruç Furtuna, 1").</p>
+  <input type="text" id="charIn2" autocomplete="off" autocapitalize="words">
+  <button class="btn" id="btnCharSave">Kaydet</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* Set programı (OGM / Excel call sheet) parser — pure JS, works in browser and node.
+   Input: pages = [{w,h,items:[{s,x,y,w,h}]}]  (pdf.js text items, y = baseline, PDF coords: y grows upward)
+   Output: {days:[{date, dayLabel, callTime, team, totalScenes, scenes:[...]}], warnings:[]}
+*/
+(function(root){
+"use strict";
+const TR_MONTHS = {OCAK:1,ŞUBAT:2,SUBAT:2,MART:3,NİSAN:4,NISAN:4,MAYIS:5,HAZİRAN:6,HAZIRAN:6,TEMMUZ:7,AĞUSTOS:8,AGUSTOS:8,EYLÜL:9,EYLUL:9,EKİM:10,EKIM:10,KASIM:11,ARALIK:12};
+const TR_WD = {PAZARTESİ:1,PAZARTESI:1,SALI:2,ÇARŞAMBA:3,CARSAMBA:3,PERŞEMBE:4,PERSEMBE:4,CUMA:5,CUMARTESİ:6,CUMARTESI:6,PAZAR:0};
+const HEADERS = ["BLM","GÜN","SAHNE","SAYFA","ZAMAN","MEKAN","OYUNCULAR","YARDIMCI OYUNCULAR","KOSTÜM-AKSESUAR","ARAÇLAR","YAPIM","NOTLAR","ÖZET"];
+const COLKEY = {"BLM":"blm","GÜN":"gun","SAHNE":"sahne","SAYFA":"sayfa","ZAMAN":"zaman","MEKAN":"mekan","OYUNCULAR":"oyuncular","YARDIMCI OYUNCULAR":"yardimci","KOSTÜM-AKSESUAR":"kostum","ARAÇLAR":"araclar","YAPIM":"araclar","NOTLAR":"notlar","ÖZET":"ozet"};
+
+function up(s){ return String(s||"").replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().replace(/\s+/g," ").trim(); }
+function norm(s){ return up(s).replace(/İ/g,"I").replace(/Ş/g,"S").replace(/Ğ/g,"G").replace(/Ü/g,"U").replace(/Ö/g,"O").replace(/Ç/g,"C"); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function isoOf(y,m,d){ return y+"-"+pad(m)+"-"+pad(d); }
+
+const MONTH_RE="("+Object.keys(TR_MONTHS).join("|")+")";
+const WD_RE="("+Object.keys(TR_WD).sort((a,b)=>b.length-a.length).join("|")+")";
+const DATE_RE=new RegExp("^(?:TARİH:?\\s*)?(\\d{1,2})\\s*[.\\s]\\s*"+MONTH_RE+"(?:\\s+(\\d{4}))?(?:\\s+"+WD_RE+")?");
+function parseDateText(txt, today){
+  // "7 ARALIK PAZAR", "12 EYLÜL CUMARTESİ İŞ GÜNÜ: 2", "1 ŞUBAT PAZAR (HAFİF YAĞMURLU)", "TARİH: 19 ARALIK CUMA"
+  const t=up(txt).trim();
+  const m=t.match(DATE_RE);
+  if(!m) return null;
+  const d=+m[1]; const mon=TR_MONTHS[m[2]]; if(!mon||d<1||d>31) return null;
+  let year=m[3]?+m[3]:null;
+  const wd = m[4]!==undefined ? TR_WD[m[4]] : null;
+  if(!year){
+    const ty=today.getFullYear();
+    const cands=[ty-1,ty,ty+1].map(y=>({y,dt:new Date(y,mon-1,d)}));
+    let pick=null;
+    if(wd!==null){
+      const ok=cands.filter(c=>c.dt.getDay()===wd);
+      if(ok.length) pick=ok.sort((a,b)=>Math.abs(a.dt-today)-Math.abs(b.dt-today))[0];
+    }
+    if(!pick) pick=cands.sort((a,b)=>Math.abs(a.dt-today)-Math.abs(b.dt-today))[0];
+    year=pick.y;
+  }
+  return {iso:isoOf(year,mon,d), label:m[0].replace(/^TARİH:?\s*/,"").trim()};
+}
+
+function groupLines(items, tol){
+  const sorted=items.slice().sort((a,b)=>b.y-a.y||a.x-b.x);
+  const lines=[];
+  for(const it of sorted){
+    const L=lines[lines.length-1];
+    if(L && Math.abs(L.y-it.y)<=tol){ L.items.push(it); L.y=(L.y*(L.items.length-1)+it.y)/L.items.length; }
+    else lines.push({y:it.y,items:[it]});
+  }
+  lines.forEach(L=>{
+    L.items.sort((a,b)=>a.x-b.x);
+    // merge glyph-split fragments ("SAH"+"N"+"E") and touching runs
+    const merged=[];
+    L.items.forEach(it=>{
+      const prev=merged[merged.length-1];
+      if(prev && it.x-(prev.x+prev.w) < 1.2){ prev.s=prev.s+it.s; prev.w=(it.x+it.w)-prev.x; }
+      else merged.push(Object.assign({},it));
+    });
+    L.items=merged;
+  });
+  return lines;
+}
+
+function findHeader(lines){
+  for(const L of lines){
+    const names=L.items.map(i=>up(i.s));
+    if(names.includes("SAHNE") && names.includes("ZAMAN") && (names.includes("ÖZET")||names.includes("OYUNCULAR"))){
+      const cols=[];
+      L.items.forEach(i=>{ const n=up(i.s); if(COLKEY[n]) cols.push({name:n,key:COLKEY[n],cx:i.x+i.w/2,x:i.x}); });
+      cols.sort((a,b)=>a.cx-b.cx);
+      return {y:L.y,cols};
+    }
+  }
+  return null;
+}
+
+function colOf(cols,it){
+  const cx=it.x+it.w/2;
+  // boundaries: midpoint between neighbouring header centers; but the first columns are narrow -> use left edge heuristics
+  let best=null,bd=1e9;
+  for(const c of cols){ const d=Math.abs(c.cx-cx); if(d<bd){bd=d;best=c;} }
+  return best;
+}
+
+function parse(pages, opts){
+  opts=opts||{};
+  const today=opts.today?new Date(opts.today):new Date();
+  const fallbackDate=opts.fallbackDate||null;
+  const warnings=[];
+  const days={}; const order=[];
+  let curDate=null, curLabel=null, curTeam="", curCall="", cols=null;
+  let pendingCall="";
+
+  function ensureDay(){
+    if(!curDate){
+      if(fallbackDate){ curDate=fallbackDate; curLabel=""; }
+      else { curDate="unknown"; }
+    }
+    if(!days[curDate]){ days[curDate]={date:curDate,dayLabel:curLabel||"",callTime:"",team:"",scenes:[],totalScenes:0,castCalls:[]}; order.push(curDate); }
+    return days[curDate];
+  }
+
+  pages.forEach((pg,pi)=>{
+    const tol=Math.max(1.5,(pg.items[0]?.h||5)*0.35);
+    const lines=groupLines(pg.items,tol);
+    const hdr=findHeader(lines);
+    if(hdr) cols=hdr.cols;
+    let castCols=null;
+    // classify lines
+    const anchors=[]; // {y, items}
+    const meta=[];
+    lines.forEach(L=>{
+      const txt=L.items.map(i=>i.s).join(" ");
+      const U=up(txt);
+      // date
+      const dt = (!cols || !hdr || L.y>hdr.y || L.items.length<=3) ? parseDateText(txt, today) : null;
+      if(dt){
+        curDate=dt.iso; curLabel=dt.label; curTeam="";
+        if(pendingCall){ ensureDay().callTime=pendingCall; pendingCall=""; }
+        L.kind="sep"; return;
+      }
+      // cast call table (call sheet bottom): OYUNCULAR | KARAKTER | SET SAATİ ...
+      if(castCols){ // we are below a cast-table header on this page
+        const row={}; L.items.forEach(i=>{ let b=null,bd=1e9; castCols.forEach(c=>{ const d=Math.abs(c.cx-(i.x+i.w/2)); if(d<bd){bd=d;b=c;} }); if(b && bd<60) row[b.key]=(row[b.key]?row[b.key]+" ":"")+i.s.trim(); });
+        if(row.character||row.actor){ ensureDay().castCalls.push({actor:row.actor||"",character:row.character||"",time:((row.time||"").match(/\d{1,2}[:.]\d{2}/)||[""])[0].replace(".",":")}); }
+        L.kind="sep"; return;
+      }
+      if(/KARAKTER/.test(U) && /SET SAATİ/.test(U)){
+        castCols=[]; L.items.forEach(i=>{ const n=up(i.s); const key = n==="OYUNCULAR"?"actor": n==="KARAKTER"?"character": n==="SET SAATİ"?"time":null; if(key) castCols.push({key,cx:i.x+i.w/2}); });
+        L.kind="sep"; return;
+      }
+      // SET: 08:30 (call sheet header)
+      const setIdx=L.items.findIndex(i=>/^SET:?$/.test(up(i.s)));
+      if(setIdx>=0){
+        const v=L.items[setIdx+1]; if(v && /^\d{1,2}[:.]\d{2}$/.test(v.s.trim())){ const ct=v.s.trim().replace(".",":"); if(curDate) ensureDay().callTime=ct; else pendingCall=ct; }
+        L.kind="sep"; return;
+      }
+      if(/EK[İI]P\s*$/.test(U) && U.length<16){ curTeam=U.replace(/\s+/g," "); L.kind="sep"; return; }
+      if(hdr && Math.abs(L.y-hdr.y)<tol){ L.kind="sep"; return; }
+      if(hdr && L.y>hdr.y){ L.kind="sep"; return; } // above header on this page: titles, crew list
+      if(!cols){ L.kind="skip"; return; }
+      // anchor line: has ZAMAN-like item in ZAMAN column, or SAYFA number + SAHNE
+      const tagged=L.items.map(i=>({it:i,col:colOf(cols,i)}));
+      const hasZaman=tagged.some(t=>t.col.key==="zaman" && /(İÇ|DIŞ|GÜN|GECE|AKŞAM|SABAH|IÇ|DIS|GUN)/.test(up(t.it.s)));
+      const hasSayfa=tagged.some(t=>t.col.key==="sayfa" && /^\d+([.,]\d+)?$/.test(t.it.s.trim()));
+      const hasSahne=tagged.some(t=>t.col.key==="sahne");
+      const onlySayfa = tagged.length===1 && tagged[0].col.key==="sayfa";
+      if(onlySayfa){ L.kind="sep"; return; } // page total
+      if(hasZaman || (hasSayfa && hasSahne)){ L.kind="anchor"; L.tagged=tagged; L.team=curTeam; L.date=curDate; anchors.push(L); return; }
+      L.kind="cont"; L.tagged=tagged; L.team=curTeam; L.date=curDate;
+    });
+    // attach continuation lines to nearest anchor without crossing a separator
+    const ordered=lines; // sorted top->bottom (y desc)
+    for(let i=0;i<ordered.length;i++){
+      const L=ordered[i]; if(L.kind!=="cont") continue;
+      let above=null, below=null;
+      for(let j=i-1;j>=0;j--){ if(ordered[j].kind==="sep") break; if(ordered[j].kind==="anchor"){ above=ordered[j]; break; } }
+      for(let j=i+1;j<ordered.length;j++){ if(ordered[j].kind==="sep") break; if(ordered[j].kind==="anchor"){ below=ordered[j]; break; } }
+      let target=null;
+      if(above && below) target = (above.y-L.y) <= (L.y-below.y) ? above : below;
+      else target = above||below;
+      if(!target){ continue; }
+      (target.extra=target.extra||[]).push(L);
+    }
+    // build rows
+    anchors.forEach(A=>{
+      const cells={};
+      const all=[{y:A.y,tagged:A.tagged}].concat((A.extra||[]).map(L=>({y:L.y,tagged:L.tagged})));
+      all.sort((a,b)=>b.y-a.y);
+      all.forEach(line=>{
+        line.tagged.forEach(t=>{ const k=t.col.key; (cells[k]=cells[k]||[]).push({y:line.y,x:t.it.x,s:t.it.s.trim()}); });
+      });
+      const text=k=>{
+        const arr=(cells[k]||[]).slice().sort((a,b)=>b.y-a.y||a.x-b.x);
+        let out="";
+        arr.forEach(p=>{ if(!out) out=p.s; else if(/-$/.test(out)||/^-/.test(p.s)) out+=p.s; else out+=" "+p.s; });
+        return out.replace(/\s+/g," ").trim();
+      };
+      curDate=A.date||curDate;
+      const day=ensureDay();
+      if(A.date && A.date!=="unknown") day.date=A.date;
+      const scene={
+        sceneNo:text("sahne").replace(/\s*-+\s*/g,"-").replace(/^-|-$/g,""), blm:text("blm"), storyDay:text("gun"), pages:text("sayfa"),
+        timeOfDay:text("zaman"), set:text("mekan"), cast:text("oyuncular"), extras:text("yardimci"),
+        costume:text("kostum"), vehicles:text("araclar"), notes:text("notlar"), synopsis:text("ozet"),
+        team:A.team||"", order:day.totalScenes+1
+      };
+      day.totalScenes++;
+      day.scenes.push(scene);
+    });
+  });
+  const out=order.map(k=>days[k]);
+  if(out.some(d=>d.date==="unknown")) warnings.push("Bazı sahnelerde tarih bulunamadı.");
+  return {days:out, warnings};
+}
+
+function splitCast(s){
+  return String(s||"").split(/\s*-\s*|\s*,\s*|\s*\/\s*/).map(x=>x.replace(/\?/g,"").trim()).filter(Boolean);
+}
+function castMatches(castText, names){
+  const C=norm(castText);
+  return names.some(n=>{
+    const N=norm(n); if(!N) return false;
+    const re=new RegExp("(^|[^A-Z0-9])"+N.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"([^A-Z0-9]|$)");
+    return re.test(C);
+  });
+}
+function filterForCharacter(result, charInput){
+  const names=String(charInput||"").split(",").map(x=>x.trim()).filter(Boolean);
+  return {
+    warnings:result.warnings,
+    days:result.days.map(d=>{
+      const mine=(d.castCalls||[]).find(c=>castMatches(c.character,names)||castMatches(c.actor,names));
+      return {
+      date:d.date, dayLabel:d.dayLabel, callTime:(mine&&mine.time)||d.callTime, setTime:d.callTime, totalScenes:d.totalScenes,
+      actorName:mine?mine.actor:"", allScenes:d.scenes.map(s=>({order:s.order,team:s.team})),
+      scenes:d.scenes.filter(s=>castMatches(s.cast,names)).map(s=>{
+        const raw=String(s.cast||"").split(/\s*-\s*|\s*,\s*|\s*\/\s*/).map(x=>x.trim()).filter(Boolean);
+        const unc=raw.some(tok=>/\?/.test(tok) && castMatches(tok.replace(/\?/g,""),names));
+        return Object.assign({},s,{characters:splitCast(s.cast), uncertain:unc});
+      })
+    };})
+  };
+}
+
+const api={parse, filterForCharacter, splitCast, castMatches, parseDateText};
+if(typeof module!=="undefined" && module.exports) module.exports=api; else root.SetParser=api;
+})(typeof window!=="undefined"?window:globalThis);
+
+</script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const TR_DAYS = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+const TR_SHORT = ["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"];
+const TR_MON = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+
+/* ---------- state ---------- */
+const S = {
+  character: "",
+  days: {},            // "YYYY-MM-DD" -> day object
+  weekStart: mondayOf(new Date()),
+  selected: iso(new Date()),
+  files: [],
+  busy: false
+};
+
+/* ---------- date helpers ---------- */
+function iso(d){ const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
+function parseIso(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
+function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function weekDates(){ return [...Array(7)].map((_,i)=>addDays(S.weekStart,i)); }
+
+/* ---------- storage: db (claude) with local fallback ---------- */
+const Store = {
+  db:null, uid:null, mode:"local",
+  async init(){
+    try{
+      const [db,user] = await Promise.all([window.claude?.use?.("db"), window.claude?.use?.("user")]);
+      const uid = user ? await user.id() : null;
+      if(db && uid){ this.db=db; this.uid=uid; this.mode="db"; }
+    }catch(e){}
+    if(this.mode==="db"){
+      const col = this.db.collection("data/users/"+this.uid);
+      col.onSnapshot(snap=>{
+        const days={};
+        snap.docs.forEach(d=>{
+          const v=d.data(); if(!v) return;
+          if(d.id==="settings"){ if(typeof v.character==="string") S.character=v.character; }
+          else if(d.id.startsWith("d-")) days[d.id.slice(2)] = v;
+        });
+        S.days=days; render();
+      }, e=>{ console.warn(e); });
+    } else {
+      try{
+        const raw=localStorage.getItem("setprog.v1");
+        if(raw){ const v=JSON.parse(raw); S.days=v.days||{}; S.character=v.character||""; }
+      }catch(e){}
+      render();
+    }
+  },
+  localSave(){ try{ localStorage.setItem("setprog.v1", JSON.stringify({days:S.days,character:S.character})); }catch(e){} },
+  async setChar(name){
+    S.character=name; render();
+    if(this.mode==="db") await this.db.collection("data/users/"+this.uid).doc("settings").set({character:name});
+    else this.localSave();
+  },
+  async putDay(date,obj){
+    S.days[date]=obj; render();
+    if(this.mode==="db") await this.db.collection("data/users/"+this.uid).doc("d-"+date).set(obj);
+    else this.localSave();
+  },
+  async delDay(date){
+    delete S.days[date]; render();
+    if(this.mode==="db") await this.db.collection("data/users/"+this.uid).doc("d-"+date).delete();
+    else this.localSave();
+  }
+};
+
+/* ---------- render ---------- */
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function dnIcon(dn){
+  const t=(dn||"").toLowerCase();
+  if(/gece|night|akşam|aksam/.test(t)) return "🌙";
+  if(/gün|gun|day|sabah|öğle/.test(t)) return "☀️";
+  return "";
+}
+
+function render(){
+  const dates=weekDates(); const today=iso(new Date());
+  const a=dates[0], b=dates[6];
+  const thisMon=iso(mondayOf(new Date()));
+  const ws=iso(S.weekStart);
+  $("#weekLbl").textContent = ws===thisMon ? "Bu hafta" : (ws===iso(addDays(mondayOf(new Date()),7)) ? "Gelecek hafta" : (ws===iso(addDays(mondayOf(new Date()),-7)) ? "Geçen hafta" : "Hafta"));
+  $("#weekSub").textContent = a.getDate()+" "+(a.getMonth()!==b.getMonth()?TR_MON[a.getMonth()]+" ":"")+"– "+b.getDate()+" "+TR_MON[b.getMonth()]+" "+b.getFullYear();
+  $("#charChip").textContent = S.character ? "🎭 "+S.character : "Karakter adını gir";
+
+  // strip
+  $("#strip").innerHTML = dates.map(d=>{
+    const k=iso(d); const day=S.days[k]; const n=day?.scenes?.length||0;
+    const cls=["dp", n?"has":"", k===today?"isToday":"", k===S.selected?"sel":""].join(" ");
+    const cntTxt = day ? (n? n+" sh." : "—") : "";
+    return `<button class="${cls}" data-day="${k}"><div class="dn">${TR_SHORT[d.getDay()]}</div><div class="dd">${d.getDate()}</div><div class="cnt">${cntTxt||"&nbsp;"}</div></button>`;
+  }).join("");
+
+  // main
+  const anyData = Object.keys(S.days).length>0;
+  let html="";
+  if(!anyData){
+    html += `<div class="welcome"><h3>Hadi başlayalım 🎬</h3><ol>
+      <li>Aşağıdan <b>Program Yükle</b>'ye bas</li>
+      <li>Karakter adını yaz</li>
+      <li>Set programının PDF'ini ya da fotoğrafını seç</li>
+      <li>Sahnelerin gün gün buraya dizilir, sahneye dokununca özeti açılır</li></ol></div>`;
+  }
+  dates.forEach(d=>{
+    const k=iso(d); const day=S.days[k];
+    const label=TR_DAYS[d.getDay()];
+    const sub=d.getDate()+" "+TR_MON[d.getMonth()];
+    html += `<section class="day" id="day-${k}"><div class="dayhead"><div><div class="t">${label}<small>${sub}${k===today?" · Bugün":""}</small></div>`;
+    if(day){
+      const tags=[];
+      if(day.shootDay) tags.push(`<span class="tag">${esc(day.shootDay)}</span>`);
+      if(day.callTime) tags.push(`<span class="tag y">⏰ ${esc(day.callTime)}${day.setTime&&day.setTime!==day.callTime?" <span style=\"color:var(--mute)\">(set "+esc(day.setTime)+")</span>":""}</span>`);
+      if(day.location) tags.push(`<span class="tag">📍 ${esc(day.location)}</span>`);
+      if(day.scenes?.length) tags.push(`<span class="tag">${day.scenes.length} sahne${day.totalScenes?" / "+day.totalScenes:""}</span>`);
+      if(tags.length) html+=`<div class="meta">${tags.join("")}</div>`;
+    }
+    html += `</div>${day?`<button class="dots" data-daymenu="${k}" aria-label="Gün seçenekleri">⋯</button>`:""}</div>`;
+    if(!day){ html += `<div class="empty">Program yüklenmedi</div>`; }
+    else if(!day.scenes?.length){ html += `<div class="empty">Bu gün senin sahnen yok 🎉</div>`; }
+    else {
+      day.scenes.forEach((s,i)=>{
+        const ln=[];
+        if(s.intExt) ln.push(esc(s.intExt));
+        if(s.dayNight) ln.push(`<span class="dn-ic">${dnIcon(s.dayNight)}</span> ${esc(s.dayNight)}`);
+        if(s.pages) ln.push(esc(s.pages)+" sf");
+        if(s.time) ln.push("⏱ "+esc(s.time));
+        if(s.team) ln.push(esc(s.team));
+        if(s.uncertain) ln.push("<span style=\"color:var(--accent)\">? teyit et</span>");
+        html += `<button class="scene${s.done?" done":""}" data-scene="${k}|${i}">
+          <div class="no"><b>${esc(s.sceneNo||"?")}</b><span>Sahne</span></div>
+          <div class="body"><div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
+          ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
+          ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}</div>
+          <div class="chev">›</div></button>`;
+      });
+    }
+    if(day?.notes) html += `<div class="daynote">📝 ${esc(day.notes)}</div>`;
+    html += `</section>`;
+  });
+  $("#main").innerHTML=html;
+}
+
+/* ---------- sheets ---------- */
+let openSheetEl=null;
+function openSheet(el){ closeSheet(); openSheetEl=el; $("#scrim").classList.add("on"); el.classList.add("on"); }
+function closeSheet(){ if(openSheetEl){ openSheetEl.classList.remove("on"); openSheetEl=null; } $("#scrim").classList.remove("on"); }
+$("#scrim").addEventListener("click",()=>{ if(!S.busy) closeSheet(); });
+// swipe down to close
+document.querySelectorAll(".sheet").forEach(sh=>{
+  let y0=null;
+  sh.addEventListener("touchstart",e=>{ if(sh.scrollTop<=0) y0=e.touches[0].clientY; else y0=null; },{passive:true});
+  sh.addEventListener("touchend",e=>{ if(y0!==null && e.changedTouches[0].clientY-y0>90 && !S.busy) closeSheet(); y0=null; },{passive:true});
+});
+
+function toast(msg,ms=2600){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),ms); }
+
+/* ---------- events ---------- */
+$("#btnPrev").onclick=()=>{ S.weekStart=addDays(S.weekStart,-7); S.selected=iso(S.weekStart); render(); window.scrollTo({top:0}); };
+$("#btnNext").onclick=()=>{ S.weekStart=addDays(S.weekStart,7); S.selected=iso(S.weekStart); render(); window.scrollTo({top:0}); };
+$("#btnToday").onclick=()=>{ S.weekStart=mondayOf(new Date()); S.selected=iso(new Date()); render(); scrollToDay(S.selected); };
+$("#strip").addEventListener("click",e=>{ const b=e.target.closest("[data-day]"); if(!b) return; S.selected=b.dataset.day; render(); scrollToDay(S.selected); });
+function scrollToDay(k){ const el=document.getElementById("day-"+k); if(el){ const y=el.getBoundingClientRect().top+window.scrollY-$("header").offsetHeight-6; window.scrollTo({top:Math.max(0,y),behavior:"smooth"}); } }
+
+$("#main").addEventListener("click",e=>{
+  const sc=e.target.closest("[data-scene]");
+  if(sc){ const [k,i]=sc.dataset.scene.split("|"); showScene(k,+i); return; }
+  const dm=e.target.closest("[data-daymenu]");
+  if(dm){ showDayMenu(dm.dataset.daymenu); }
+});
+
+$("#charChip").onclick=()=>{ $("#charIn2").value=S.character; openSheet($("#charSheet")); };
+$("#btnCharSave").onclick=async()=>{ const v=$("#charIn2").value.trim(); closeSheet(); try{ await Store.setChar(v); toast("Kaydedildi"); }catch(e){ toast("Kaydedilemedi"); } };
+
+function showScene(k,i){
+  const day=S.days[k]; const s=day?.scenes?.[i]; if(!s) return;
+  const d=parseIso(k);
+  const me=(S.character||"").toLocaleLowerCase("tr").split(",").map(x=>x.trim()).filter(Boolean);
+  const isMe = c => me.some(m=>c.toLocaleLowerCase("tr").includes(m));
+  const tags=[];
+  if(s.intExt) tags.push(`<span class="tag">${esc(s.intExt)}</span>`);
+  if(s.dayNight) tags.push(`<span class="tag">${dnIcon(s.dayNight)} ${esc(s.dayNight)}</span>`);
+  if(s.pages) tags.push(`<span class="tag">${esc(s.pages)} sayfa</span>`);
+  if(s.time) tags.push(`<span class="tag y">⏱ ${esc(s.time)}</span>`);
+  if(s.team || s.order) tags.push(`<span class="tag">${esc(s.team||"")}${s.team&&s.order?" · ":""}${s.order?esc(s.order)+". sahne":""}</span>`);
+  $("#sceneBody").innerHTML = `
+    <div class="sd-top"><div><div class="sd-k">Sahne</div><div class="sd-no">${esc(s.sceneNo||"?")}</div></div>
+    <div style="margin-left:auto;text-align:right"><div class="sd-k">${TR_DAYS[d.getDay()]}</div><div style="font-weight:700;margin-top:3px">${d.getDate()} ${TR_MON[d.getMonth()]}</div></div></div>
+    <div class="sd-set">${esc(s.set||"")}</div>
+    ${tags.length?`<div class="sd-tags">${tags.join("")}</div>`:""}
+    <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(s.synopsis):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
+    ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
+    ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
+    <button class="btn" id="btnDone">${s.done?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
+  $("#btnDone").onclick=async()=>{
+    const copy=JSON.parse(JSON.stringify(day)); copy.scenes[i].done=!s.done; closeSheet();
+    try{ await Store.putDay(k,copy); }catch(e){ toast("Kaydedilemedi"); }
+  };
+  openSheet($("#sceneSheet"));
+}
+
+function showDayMenu(k){
+  const day=S.days[k]; const d=parseIso(k);
+  $("#dayBody").innerHTML = `<h2>${TR_DAYS[d.getDay()]}, ${d.getDate()} ${TR_MON[d.getMonth()]}</h2>
+    <p class="hint">${day?.sourceName?("Kaynak: "+esc(day.sourceName)):""}</p>
+    <button class="btn ghost" id="dmCopy">Sahne listesini kopyala</button>
+    <button class="btn danger" id="dmDel">Bu günün programını sil</button>`;
+  $("#dmCopy").onclick=async()=>{
+    const lines=[`${TR_DAYS[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()]}${day.callTime?" – Call "+day.callTime:""}`];
+    (day.scenes||[]).forEach(s=>lines.push(`Sh. ${s.sceneNo} – ${s.set||""}${s.dayNight?" ("+s.dayNight+")":""}`));
+    try{ await navigator.clipboard.writeText(lines.join("\n")); toast("Kopyalandı"); }catch(e){ toast("Kopyalanamadı"); }
+    closeSheet();
+  };
+  $("#dmDel").onclick=async()=>{
+    const btn=$("#dmDel");
+    if(!btn.dataset.sure){ btn.dataset.sure="1"; btn.textContent="Emin misin? Tekrar dokun"; return; }
+    closeSheet(); try{ await Store.delDay(k); toast("Silindi"); }catch(e){ toast("Silinemedi"); }
+  };
+  openSheet($("#daySheet"));
+}
+
+/* ---------- upload ---------- */
+$("#fab").onclick=()=>{
+  $("#charIn").value=S.character;
+  if(!$("#fallbackDate").value) $("#fallbackDate").value=S.selected||iso(new Date());
+  setStatus(false); renderFiles();
+  openSheet($("#upSheet"));
+};
+$("#fileIn").addEventListener("change",e=>{ S.files.push(...e.target.files); e.target.value=""; renderFiles(); });
+function renderFiles(){
+  $("#fileList").innerHTML=S.files.map((f,i)=>`<div class="file"><span>${f.type==="application/pdf"?"📄":"🖼️"} ${esc(f.name)}</span><button data-rm="${i}">✕</button></div>`).join("");
+  $("#btnParse").disabled = !S.files.length || S.busy;
+}
+$("#fileList").addEventListener("click",e=>{ const b=e.target.closest("[data-rm]"); if(b){ S.files.splice(+b.dataset.rm,1); renderFiles(); } });
+
+function setStatus(on,txt,isErr){
+  const st=$("#status"); st.classList.toggle("on",!!on);
+  st.querySelector(".spin").style.display = isErr||!S.busy ? "none":"";
+  const t=$("#statusTxt"); t.textContent=txt||""; t.className=isErr?"err":"";
+}
+
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Yüklenemedi: "+src)); document.head.appendChild(s); }); }
+let pdfReady=null;
+function ensurePdf(){
+  if(!pdfReady){
+    const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+    pdfReady = loadScript(base+"pdf.min.js").then(()=>loadScript(base+"pdf.worker.min.js")).then(()=>{
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+"pdf.worker.min.js";
+    });
+  }
+  return pdfReady;
+}
+
+function canvasToBlob(c,q=0.85){ return new Promise(r=>c.toBlob(r,"image/jpeg",q)); }
+
+async function imageFileToBlob(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=url; });
+    const max=2200; let w=img.naturalWidth, h=img.naturalHeight;
+    const sc=Math.min(1,max/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+    const c=document.createElement("canvas"); c.width=w; c.height=h;
+    const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+    return await canvasToBlob(c);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function pdfToParts(file,maxPages){
+  await ensurePdf();
+  const buf=await file.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:buf, disableWorker:true}).promise;
+  const texts=[], images=[];
+  const n=pdf.numPages;
+  for(let p=1;p<=n;p++){
+    const page=await pdf.getPage(p);
+    try{
+      const tc=await page.getTextContent();
+      // rebuild lines by y position
+      const rows={};
+      tc.items.forEach(it=>{ const y=Math.round(it.transform[5]); (rows[y]=rows[y]||[]).push({x:it.transform[4],s:it.str}); });
+      const lines=Object.keys(rows).map(Number).sort((a,b)=>b-a).map(y=>rows[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join("  ").replace(/\s{3,}/g,"  ").trim()).filter(Boolean);
+      texts.push(`--- ${file.name} · sayfa ${p} ---\n`+lines.join("\n"));
+    }catch(e){}
+    if(images.length<maxPages){
+      const vp0=page.getViewport({scale:1});
+      const scale=Math.min(2.5, 2000/Math.max(vp0.width,vp0.height));
+      const vp=page.getViewport({scale});
+      const c=document.createElement("canvas"); c.width=Math.round(vp.width); c.height=Math.round(vp.height);
+      const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      images.push(await canvasToBlob(c));
+    }
+  }
+  return {texts,images,pages:n};
+}
+
+function buildPrompt(character,texts,fallbackDate){
+  const today=iso(new Date());
+  return `Sen bir dizi/film setinde çalışan oyuncunun asistanısın. Ekteki görsel(ler) ve/veya metin bir SET PROGRAMI (çekim planı / call sheet / günlük program / haftalık plan).
+
+Oyuncunun KARAKTER ADI: "${character}"
+(Virgülle birden fazla yazılmışsa hepsi aynı karakterin farklı yazımları/lakabı/oyuncu numarasıdır.)
+
+GÖREV: Programdaki HER çekim gününü bul ve o gün içinde bu karakterin OYNADIĞI TÜM sahneleri eksiksiz çıkar.
+
+Kurallar — dikkatle uygula, hiçbir detayı atlama:
+1. Karakter eşleşmesi büyük/küçük harf ve Türkçe karakter farkına duyarsız olsun (ORUÇ = Oruç = ORUC). Soyadlı/lakaplı hali de sayılır.
+2. Programlarda karakterler bazen NUMARA ile listelenir (ör. oyuncu listesinde "1. ORUÇ – Burak Yörük", sahnede "Oyuncular: 1, 3, 7"). Önce karakterin numarasını oyuncu/cast listesinden bul, sonra numara geçen sahneleri de say.
+3. Sadece bu karakterin olduğu sahneleri "scenes" içine koy; ama o günün TOPLAM sahne sayısını "totalScenes" alanına yaz.
+4. Sahne özeti genelde satırın/sütunun SONUNDAKİ açıklama sütunudur (Açıklama, Özet, Synopsis, Description vb.). Bunu KISALTMADAN, olduğu gibi "synopsis" alanına yaz.
+5. Sahne numarasını programda yazdığı gibi yaz (ör. "12", "12A", "4/7", "Ek-3").
+6. Tarih: Programdaki tarihi YYYY-MM-DD yap. Yıl yazmıyorsa bugüne (${today}) en yakın mantıklı yılı seç. Gün adı varsa ("Pazartesi") tarihle tutarlı mı kontrol et. Hiç tarih yoksa "${fallbackDate}" kullan (çok günlüyse sonraki günler için ardışık tarih ver).
+7. Sahnelerin sırasını programdaki çekim sırasıyla koru.
+8. Okuyamadığın/emin olmadığın şeyleri uydurma; o alanı boş bırak ve "warnings" içine yaz.
+9. Karakter o gün hiç yoksa yine de günü ekle, "scenes": [] olsun.
+
+SADECE şu JSON'u döndür, başka hiçbir metin yazma:
+{
+  "days": [
+    {
+      "date": "YYYY-MM-DD",
+      "shootDay": "ör. 14. Çekim Günü veya boş",
+      "callTime": "karakterin/oyuncunun çağrı (call/makyaj/hazır) saati varsa, yoksa genel set saati, yoksa boş",
+      "location": "ana set/lokasyon adı",
+      "totalScenes": 0,
+      "notes": "o güne dair oyuncuyu ilgilendiren kısa not (servis saati, kostüm, özel uyarı) ya da boş",
+      "scenes": [
+        {
+          "sceneNo": "12",
+          "set": "Set / mekân adı (ör. FURTUNA EVİ - SALON)",
+          "intExt": "İÇ veya DIŞ (programda nasıl yazıyorsa)",
+          "dayNight": "GÜNDÜZ / GECE / AKŞAM vb.",
+          "pages": "sayfa uzunluğu (ör. 1 3/8) varsa",
+          "time": "sahneye özel saat varsa",
+          "order": "günün kaçıncı sahnesi (çekim sırası) varsa",
+          "characters": ["sahnedeki tüm karakter adları"],
+          "synopsis": "sahne açıklaması/özeti, tam metin",
+          "extra": "kostüm, aksesuar, efekt vb. sahneye özel not varsa"
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
+${texts.length?`\nPDF'ten çıkarılan ham metin (görsellerle birlikte kullan; tablo düzeni bozulmuş olabilir, görseller asıl kaynak):\n${texts.join("\n\n").slice(0,60000)}`:""}`;
+}
+
+function extractJson(t){
+  if(!t) return null;
+  const s=t.indexOf("{"), e=t.lastIndexOf("}");
+  if(s<0||e<=s) return null;
+  try{ return JSON.parse(t.slice(s,e+1)); }catch(_){ return null; }
+}
+
+
+function tod(t){ // "İÇ/DIŞ/GÜN" -> {intExt:"İÇ/DIŞ", dayNight:"GÜN"}
+  const parts=String(t||"").split(/\s*\/\s*|\s+/).filter(Boolean);
+  const dn=[],ie=[];
+  parts.forEach(x=>{ if(/^(GÜN|GECE|AKŞAM|SABAH|ÜGN|GUN)$/i.test(x)) dn.push(x.replace(/ÜGN/,"GÜN")); else ie.push(x); });
+  return {intExt:ie.join("/"), dayNight:dn.join("/")};
+}
+function localToDay(d, srcName, prev, replace){
+  // per-team shooting order: count rows within each EKİP across the whole day
+  const teamPos={}; const posByOrder={}; const teamTotal={};
+  (d.allScenes||[]).forEach(s=>{ const t=s.team||""; teamPos[t]=(teamPos[t]||0)+1; posByOrder[s.order]=teamPos[t]; teamTotal[t]=teamPos[t]; });
+  const scenes=d.scenes.map(s=>{
+    const t=tod(s.timeOfDay);
+    const extra=[];
+    if(s.blm) extra.push("Bölüm: "+s.blm+(s.storyDay?" · Gün "+s.storyDay:""));
+    if(s.extras) extra.push("Yardımcı oyuncular: "+s.extras);
+    if(s.costume) extra.push("Kostüm/Aksesuar: "+s.costume);
+    if(s.vehicles) extra.push("Araçlar: "+s.vehicles);
+    if(s.notes) extra.push("Not: "+s.notes);
+    if(s.uncertain) extra.push("⚠️ Programda adının yanında soru işareti var; teyit et.");
+    return { sceneNo:s.sceneNo||"?", set:s.set||"", intExt:t.intExt, dayNight:t.dayNight, pages:s.pages||"", time:"", order: posByOrder[s.order] ? posByOrder[s.order]+" / "+teamTotal[s.team||""] : "",
+      team:(s.team||"").replace(/\s+/g,"").replace("EKİP"," EKİP"), characters:s.characters||[], synopsis:s.synopsis||"", extra:extra.join("\n"), uncertain:!!s.uncertain, done:false };
+  });
+  let finalScenes=scenes;
+  if(prev && !replace){ const seen=new Set(prev.scenes.map(x=>x.sceneNo)); finalScenes=[...prev.scenes, ...scenes.filter(x=>!seen.has(x.sceneNo))]; }
+  else if(prev){ const doneMap=Object.fromEntries((prev.scenes||[]).map(x=>[x.sceneNo,x.done])); finalScenes.forEach(x=>{ if(doneMap[x.sceneNo]) x.done=true; }); }
+  return { date:d.date, shootDay:"", dayLabel:d.dayLabel||"", callTime:d.callTime||"", setTime:d.setTime||"", location:"", totalScenes:d.totalScenes||0, notes:"",
+    scenes:finalScenes, sourceName:srcName, parsedBy:"local", updatedAt:new Date().toISOString() };
+}
+
+async function pdfToPages(file){
+  await ensurePdf();
+  const buf=await file.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:buf, disableWorker:true}).promise;
+  const pages=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p); const vp=page.getViewport({scale:1});
+    const tc=await page.getTextContent();
+    pages.push({w:vp.width,h:vp.height,items:tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:i.height||Math.abs(i.transform[3])}))});
+  }
+  return {pages, pdf};
+}
+
+async function saveDays(dayObjs){
+  let dCount=0,sCount=0,firstDate=null;
+  for(const obj of dayObjs){ await Store.putDay(obj.date,obj); dCount++; sCount+=obj.scenes.length; if(!firstDate||obj.date<firstDate) firstDate=obj.date; }
+  return {dCount,sCount,firstDate};
+}
+
+$("#btnParse").onclick=async()=>{
+  const character=$("#charIn").value.trim();
+  if(!character){ $("#charIn").focus(); setStatus(true,"Önce karakter adını yaz.",true); return; }
+  if(!S.files.length) return;
+  S.busy=true; renderFiles();
+  const replace=$("#replaceChk").checked;
+  const srcName=S.files.map(f=>f.name).join(", ");
+  const fallback=$("#fallbackDate").value||iso(new Date());
+  try{
+    if(character!==S.character) Store.setChar(character).catch(()=>{});
+    // ---- 1) local parse for PDFs ----
+    const pdfs=S.files.filter(f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name));
+    const imgs=S.files.filter(f=>!(f.type==="application/pdf"||/\.pdf$/i.test(f.name)));
+    const localDays=[]; const unreadPdfs=[]; const warns=[];
+    for(const f of pdfs){
+      setStatus(true,`Okunuyor: ${f.name}`);
+      let pages;
+      try{ pages=(await pdfToPages(f)).pages; }catch(e){ unreadPdfs.push(f); continue; }
+      const res=window.SetParser.parse(pages,{fallbackDate:fallback});
+      const total=res.days.reduce((a,d)=>a+d.totalScenes,0);
+      if(!total){ unreadPdfs.push(f); continue; }
+      const mine=window.SetParser.filterForCharacter(res,character);
+      warns.push(...res.warnings);
+      mine.days.forEach(d=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(d.date)) localDays.push(localToDay(d,f.name,S.days[d.date],replace)); });
+    }
+    // ---- 2) AI fallback for images / unreadable PDFs ----
+    let aiDayObjs=[];
+    const aiFiles=[...imgs,...unreadPdfs];
+    if(aiFiles.length){
+      const sample = await window.claude?.use?.("sample");
+      if(!sample) throw new Error((localDays.length?"PDF okundu, ama ":"")+"fotoğraf/taranmış dosya için yapay zekâ bu görünümde açık değil. Uygulamayı Claude içinden aç ya da metin içeren PDF yükle.");
+      let maxImg=12, imagesOk=true;
+      try{ const lim=await sample.limits(); if(lim && lim.images===false) imagesOk=false; if(typeof lim?.images==="number") maxImg=lim.images; if(typeof lim?.maxImages==="number") maxImg=lim.maxImages; }catch(_){}
+      const images=[], texts=[];
+      for(const f of aiFiles){
+        if(f.type==="application/pdf" || /\.pdf$/i.test(f.name)){
+          setStatus(true,`PDF görsele çevriliyor: ${f.name}`);
+          const r=await pdfToParts(f, Math.max(0,maxImg-images.length)); images.push(...r.images); texts.push(...r.texts);
+        } else if(images.length<maxImg){ setStatus(true,`Görsel hazırlanıyor: ${f.name}`); images.push(await imageFileToBlob(f)); }
+      }
+      if(!imagesOk) images.length=0;
+      if(!images.length && !texts.join("").trim()) throw new Error("Dosyadan okunabilir içerik çıkmadı.");
+      setStatus(true,"Yapay zekâ programı okuyor… (20–60 sn sürebilir)");
+      const prompt=buildPrompt(character,texts,fallback);
+      const opts={ modelTier:"complex", onText:({text})=>{ const n=(text||"").length; if(n>20) setStatus(true,`Sahneler yazılıyor… (${n} karakter)`); } };
+      if(images.length) opts.images=images;
+      const res=await sample(prompt,opts);
+      const data=extractJson(res?.text);
+      if(!data || !Array.isArray(data.days)) throw new Error("Program çözümlenemedi. Daha net bir fotoğraf ya da PDF ile tekrar dene.");
+      warns.push(...(data.warnings||[]).filter(Boolean));
+      for(const d of data.days){
+        if(!d || !/^\d{4}-\d{2}-\d{2}$/.test(d.date||"")) continue;
+        const scenes=(Array.isArray(d.scenes)?d.scenes:[]).map(s=>({
+          sceneNo:String(s.sceneNo??"").trim(), set:s.set||"", intExt:s.intExt||"", dayNight:s.dayNight||"",
+          pages:s.pages?String(s.pages):"", time:s.time||"", order:s.order?String(s.order):"", team:"",
+          characters:Array.isArray(s.characters)?s.characters.map(String):[], synopsis:s.synopsis||"", extra:s.extra||"", done:false }));
+        const prev=S.days[d.date]; let finalScenes=scenes;
+        if(prev && !replace){ const seen=new Set(prev.scenes.map(x=>x.sceneNo)); finalScenes=[...prev.scenes, ...scenes.filter(x=>!seen.has(x.sceneNo))]; }
+        else if(prev){ const doneMap=Object.fromEntries((prev.scenes||[]).map(x=>[x.sceneNo,x.done])); finalScenes.forEach(x=>{ if(doneMap[x.sceneNo]) x.done=true; }); }
+        aiDayObjs.push({ date:d.date, shootDay:d.shootDay||"", callTime:d.callTime||"", location:d.location||"", totalScenes:Number(d.totalScenes)||0, notes:d.notes||"",
+          scenes:finalScenes, sourceName:srcName, parsedBy:"ai", updatedAt:new Date().toISOString() });
+      }
+    }
+    // merge: later entries for same date win
+    const byDate={}; [...localDays,...aiDayObjs].forEach(o=>byDate[o.date]=o);
+    const all=Object.values(byDate);
+    if(!all.length) throw new Error("Programda tarih bulunamadı. 'Hangi gün?' alanını seçip tekrar dene.");
+    setStatus(true,"Kaydediliyor…");
+    const r=await saveDays(all);
+    S.busy=false; S.files=[]; renderFiles(); closeSheet();
+    S.weekStart=mondayOf(parseIso(r.firstDate)); S.selected=r.firstDate; render(); scrollToDay(r.firstDate);
+    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
+  }catch(e){
+    S.busy=false; renderFiles();
+    const m = e?.code==="not_granted" ? "Yapay zekâ izni verilmedi." : e?.code==="rate_limited" ? "Çok sık deneme yapıldı, biraz bekleyip tekrar dene." : (e?.message||"Bir hata oldu.");
+    setStatus(true,m,true);
+  }
+};
+
+/* boot */
+render();
+Store.init();
+})();
+</script>
+</body>
+</html>
