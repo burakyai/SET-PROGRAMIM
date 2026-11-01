@@ -27,7 +27,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
 
 /* header */
-header{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 85%,transparent);padding:calc(14px + var(--safe-t)) 18px 8px}
+header{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(14px + var(--safe-t)) 18px 10px;border-bottom:1px solid var(--line)}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{display:flex;align-items:center;gap:10px}
 .clap{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
@@ -66,8 +66,10 @@ main{padding:6px 18px 0}
 
 .scene{display:flex;gap:12px;align-items:stretch;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:10px;width:100%;text-align:left;transition:transform .08s}
 .scene:active{transform:scale(.985)}
-.scene .no{min-width:58px;border-radius:11px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px}
-.scene .no b{font-family:"JetBrains Mono",monospace;font-size:20px;font-weight:700;color:var(--accent);line-height:1}
+.scene .no{width:64px;flex:none;border-radius:11px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px}
+.scene .no b{font-family:"JetBrains Mono",monospace;font-size:20px;font-weight:700;color:var(--accent);line-height:1.1;text-align:center;word-break:break-all}
+.scene .no b.m{font-size:15px}
+.scene .no b.s{font-size:12.5px}
 .scene .no span{font-size:9.5px;color:var(--mute);margin-top:4px;letter-spacing:.5px;text-transform:uppercase}
 .scene .body{flex:1;min-width:0}
 .scene .set{font-size:14.5px;font-weight:700;line-height:1.25}
@@ -112,8 +114,10 @@ input:focus{border-color:var(--accent)}
 .check input{width:20px;height:20px;accent-color:var(--accent)}
 
 /* scene detail */
-.sd-top{display:flex;align-items:center;gap:14px}
-.sd-no{font-family:"JetBrains Mono",monospace;font-size:34px;font-weight:700;color:var(--accent);line-height:1}
+.sd-top{display:flex;align-items:flex-start;gap:14px}
+.sd-top>div:first-child{min-width:0;flex:1}
+.sd-no{font-family:"JetBrains Mono",monospace;font-size:34px;font-weight:700;color:var(--accent);line-height:1.1;word-break:break-word}
+.sd-no.long{font-size:20px}
 .sd-k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.6px}
 .sd-set{font-size:18px;font-weight:800;margin-top:14px;line-height:1.3}
 .sd-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -515,6 +519,11 @@ function dnIcon(dn){
   return "";
 }
 
+function shortNo(no){
+  const parts=String(no||"?").split("-").filter(Boolean);
+  if(parts.length<=2 && String(no).length<=7) return {txt:String(no||"?"),cnt:""};
+  return {txt:parts[0]+"…"+parts[parts.length-1], cnt:parts.length+" parça"};
+}
 function render(){
   const dates=weekDates(); const today=iso(new Date());
   const a=dates[0], b=dates[6];
@@ -568,7 +577,7 @@ function render(){
         if(s.team) ln.push(esc(s.team));
         if(s.uncertain) ln.push("<span style=\"color:var(--accent)\">? teyit et</span>");
         html += `<button class="scene${s.done?" done":""}" data-scene="${k}|${i}">
-          <div class="no"><b>${esc(s.sceneNo||"?")}</b><span>Sahne</span></div>
+          ${(()=>{const n=shortNo(s.sceneNo);const c=n.txt.length>7?"s":n.txt.length>4?"m":"";return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`;})()}
           <div class="body"><div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
           ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
           ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}</div>
@@ -624,7 +633,7 @@ function showScene(k,i){
   if(s.time) tags.push(`<span class="tag y">⏱ ${esc(s.time)}</span>`);
   if(s.team || s.order) tags.push(`<span class="tag">${esc(s.team||"")}${s.team&&s.order?" · ":""}${s.order?esc(s.order)+". sahne":""}</span>`);
   $("#sceneBody").innerHTML = `
-    <div class="sd-top"><div><div class="sd-k">Sahne</div><div class="sd-no">${esc(s.sceneNo||"?")}</div></div>
+    <div class="sd-top"><div><div class="sd-k">Sahne</div><div class="sd-no${String(s.sceneNo||"").length>8?" long":""}">${esc(s.sceneNo||"?")}</div></div>
     <div style="margin-left:auto;text-align:right"><div class="sd-k">${TR_DAYS[d.getDay()]}</div><div style="font-weight:700;margin-top:3px">${d.getDate()} ${TR_MON[d.getMonth()]}</div></div></div>
     <div class="sd-set">${esc(s.set||"")}</div>
     ${tags.length?`<div class="sd-tags">${tags.join("")}</div>`:""}
