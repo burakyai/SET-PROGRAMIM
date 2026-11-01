@@ -152,6 +152,55 @@ input:focus{border-color:var(--accent)}
 .welcome h3{margin:0 0 8px;font-size:17px}
 .welcome ol{margin:0;padding-left:18px;color:#cfc8bd;font-size:14px;line-height:1.7}
 .menu{display:flex;flex-direction:column;gap:0}
+
+/* ---- airy layout ---- */
+body{padding-bottom:calc(96px + var(--safe-b))}
+header{padding:calc(10px + var(--safe-t)) 16px 8px}
+.clap{width:30px;height:30px;border-radius:8px}
+.clap svg{width:17px;height:17px}
+.brand{gap:10px;min-width:0}
+.wk{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:800;letter-spacing:-.2px;padding:4px 2px;white-space:nowrap}
+.wk .car{color:var(--mute);font-size:16px;transition:transform .2s;transform:translateY(-3px)}
+.wk[aria-expanded="true"] .car{transform:rotate(180deg) translateY(-3px)}
+.charchip{padding:6px 10px;font-size:12px}
+.strip{gap:4px;margin-top:10px}
+.dp{border:0;background:transparent;border-radius:10px;padding:5px 0 6px}
+.dp .dn{font-size:10px}
+.dp .dd{font-size:15px;margin-top:1px}
+.dp .cnt{height:5px;margin:4px auto 0;width:5px;border-radius:50%;font-size:0;background:transparent}
+.dp.has .cnt{background:var(--accent)}
+.dp.isToday{box-shadow:inset 0 0 0 1px var(--accent)}
+.dp.sel{background:var(--accent)}
+.dp.sel .cnt{background:var(--accent-ink)}
+.dp.sel.has .cnt{background:var(--accent-ink)}
+.more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease}
+.more.on{grid-template-rows:1fr}
+.morein{overflow:hidden}
+.more .weekbar{margin-top:12px}
+.more .lbl{font-size:13px;color:var(--mute);font-weight:600}
+.arr{width:34px;height:32px;border-radius:9px}
+.arr.today{height:32px}
+.seg{margin-top:10px}
+.manage{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;font-weight:600;color:var(--mute);padding:4px 2px}
+.manage svg{width:16px;height:16px;color:var(--red)}
+main{padding:0 16px}
+.day{margin-top:22px}
+.dayhead{border-bottom:0;padding-bottom:4px}
+.dayhead .t{font-size:15px}
+.dayhead .meta{margin-top:6px}
+.tag{font-size:11px;padding:2px 7px;background:transparent}
+.empty{padding:4px 2px;font-size:12.5px}
+.scene{padding:11px 12px;margin-top:8px;border-radius:14px;gap:12px}
+.scene .no{width:52px;background:transparent;padding:2px 0;border-right:1px solid var(--line);border-radius:0;padding-right:10px;box-sizing:content-box}
+.scene .no b{font-size:19px}
+.scene .no b.m{font-size:14px}
+.scene .no b.s{font-size:12px}
+.scene .no span{font-size:9px}
+.scene .set{font-size:14px}
+.scene .sum{font-size:12.5px;-webkit-line-clamp:2}
+.scene.other .no{width:52px;background:transparent}
+.fab{left:auto;right:18px;width:58px;height:58px;border-radius:50%;padding:0;bottom:calc(18px + var(--safe-b))}
+.fab svg{width:26px;height:26px}
 </style>
 </head>
 <body>
@@ -160,26 +209,30 @@ input:focus{border-color:var(--accent)}
   <div class="top">
     <div class="brand">
       <div class="clap"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1500" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 11 3.3 7.2a1 1 0 0 1 .8-1.2L17.6 3.6a1 1 0 0 1 1.2.8L19.3 7 4 11"/><path d="m8.5 5.6 2.6 3.6M13.4 4.7l2.6 3.6"/></svg></div>
-      <h1>Set Programım</h1>
+      <button class="wk" id="wkToggle" aria-expanded="false"><span id="weekSub"></span><span class="car">⌄</span></button>
     </div>
     <button class="charchip" id="charChip">Karakter: —</button>
   </div>
-  <div class="weekbar">
-    <div><div class="lbl" id="weekLbl">Bu hafta</div><div class="sub" id="weekSub"></div></div>
-    <div class="arrows">
-      <button class="trash" id="btnManage" aria-label="Programları yönet"><svg viewBox="0 0 24 24" fill="none" stroke="#ff5a4e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>
-      <button class="arr today" id="btnToday">Bugün</button>
-      <button class="arr" id="btnPrev" aria-label="Önceki hafta">‹</button>
-      <button class="arr" id="btnNext" aria-label="Sonraki hafta">›</button>
+  <div class="strip" id="strip"></div>
+  <div class="more" id="more">
+    <div class="morein">
+      <div class="weekbar">
+        <div class="lbl" id="weekLbl">Bu hafta</div>
+        <div class="arrows">
+          <button class="arr" id="btnPrev" aria-label="Önceki hafta">‹</button>
+          <button class="arr today" id="btnToday">Bugün</button>
+          <button class="arr" id="btnNext" aria-label="Sonraki hafta">›</button>
+        </div>
+      </div>
+      <div class="seg" id="seg"><button data-v="mine">Benim sahnelerim</button><button data-v="all">Tüm program</button></div>
+      <button class="manage" id="btnManage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Yüklenen programlar</button>
     </div>
   </div>
-  <div class="strip" id="strip"></div>
-  <div class="seg" id="seg"><button data-v="mine">Benim sahnelerim</button><button data-v="all">Tüm program</button></div>
 </header>
 
 <main id="main"></main>
 
-<button class="fab" id="fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>Program Yükle</button>
+<button class="fab" id="fab" aria-label="Program yükle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 
 <div class="scrim" id="scrim"></div>
 
@@ -596,7 +649,8 @@ function render(){
   const thisMon=iso(mondayOf(new Date()));
   const ws=iso(S.weekStart);
   $("#weekLbl").textContent = ws===thisMon ? "Bu hafta" : (ws===iso(addDays(mondayOf(new Date()),7)) ? "Gelecek hafta" : (ws===iso(addDays(mondayOf(new Date()),-7)) ? "Geçen hafta" : "Hafta"));
-  $("#weekSub").textContent = a.getDate()+" "+(a.getMonth()!==b.getMonth()?TR_MON[a.getMonth()]+" ":"")+"– "+b.getDate()+" "+TR_MON[b.getMonth()]+" "+b.getFullYear();
+  $("#weekSub").textContent = a.getDate()+(a.getMonth()!==b.getMonth()?" "+TR_MON[a.getMonth()]:"")+" – "+b.getDate()+" "+TR_MON[b.getMonth()];
+  $("#weekLbl").textContent += " · "+b.getFullYear();
   $("#charChip").textContent = S.character ? "🎭 "+S.character : "Karakter adını gir";
   document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.view));
 
@@ -686,6 +740,7 @@ $("#main").addEventListener("click",e=>{
   if(dm){ showDayMenu(dm.dataset.daymenu); }
 });
 
+$("#wkToggle").onclick=()=>{ const m=$("#more"); const on=!m.classList.contains("on"); m.classList.toggle("on",on); $("#wkToggle").setAttribute("aria-expanded",on); };
 $("#seg").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; S.view=b.dataset.v; try{ localStorage.setItem("setprog.view",S.view); }catch(_){}
   render(); if(S.view==="all" && !Object.values(S.days).some(d=>d.all?.length) && Object.keys(S.days).length) toast("Tüm programı görmek için programı bir kez yeniden yükle",4000); });
 
