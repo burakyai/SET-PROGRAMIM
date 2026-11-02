@@ -655,20 +655,24 @@ function sceneLine(s){
   return ln;
 }
 function noBox(s){ const n=shortNo(s.sceneNo); const c=n.txt.length>7?"s":n.txt.length>4?"m":""; return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`; }
+function isDone(day,s){
+  const key=s.sceneNo+"|"+(s.team||"");
+  return [...(day.scenes||[]),...(day.all||[])].some(x=>x.done && x.sceneNo+"|"+(x.team||"")===key);
+}
 function renderAll(k,day){
   let h=""; let lastTeam=null;
   const mineIdx={}; (day.scenes||[]).forEach((s,i)=>{ mineIdx[s.sceneNo+"|"+s.team]=i; });
   day.all.forEach((s,i)=>{
     if(s.team!==lastTeam){ lastTeam=s.team; if(s.team) h+=`<div class="teamhead">${esc(s.team)}</div>`; }
     const mi=mineIdx[s.sceneNo+"|"+s.team];
-    const done = mi!==undefined && day.scenes[mi].done;
+    const done = isDone(day,s);
     const ln=sceneLine(s);
     if(s.mine){
       h+=`<button class="scene mine${done?" done":""}" data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
         <div class="body"><div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
         ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}</div><div class="chev">›</div></button>`;
     } else {
-      h+=`<button class="scene other" data-scene="${k}|a${i}">${noBox(s)}
+      h+=`<button class="scene other${done?" done":""}" data-scene="${k}|a${i}">${noBox(s)}
         <div class="body"><div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
         ${s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:""}</div><div class="chev">›</div></button>`;
     }
@@ -868,9 +872,13 @@ function showScene(k,i){
     <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(s.synopsis):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
-    ${isAll?"":`<button class="btn" id="btnDone">${s.done?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`}`;
-  if(!isAll) $("#btnDone").onclick=async()=>{
-    const copy=JSON.parse(JSON.stringify(day)); copy.scenes[i].done=!s.done; closeSheet();
+    <button class="btn" id="btnDone">${isDone(day,s)?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
+  $("#btnDone").onclick=async()=>{
+    const v=!isDone(day,s); const key=s.sceneNo+"|"+(s.team||"");
+    const copy=JSON.parse(JSON.stringify(day));
+    (copy.scenes||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
+    (copy.all||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
+    closeSheet();
     try{ await Store.putDay(k,copy); }catch(e){ toast("Kaydedilemedi"); }
   };
   openSheet($("#sceneSheet"));
@@ -1051,7 +1059,7 @@ function rematchDay(day,charInput){
     const cast=a.cast||(a.characters||[]).join("-");
     const unc=cast.split(/\s*-\s*|\s*,\s*|\s*\/\s*/).some(t=>/\?/.test(t)&&P.castMatches(t.replace(/\?/g,""),names));
     const o=Object.assign({},a); delete o.mine;
-    o.uncertain=unc; o.done=!!doneMap[a.sceneNo+"|"+(a.team||"")];
+    o.uncertain=unc; o.done=!!(doneMap[a.sceneNo+"|"+(a.team||"")]||a.done);
     o.extra=[o.extra, unc?"⚠️ Programda adının yanında soru işareti var; teyit et.":""].filter(Boolean).join("\n");
     return o;
   });
@@ -1078,7 +1086,8 @@ function localToDay(d, srcName, prev, replace){
       team:(s.team||"").replace(/\s+/g,"").replace("EKİP"," EKİP"), characters:s.characters||[], synopsis:s.synopsis||"", extra:extra.join("\n"), uncertain:!!s.uncertain, done:false };
   };
   const scenes=d.scenes.map(conv);
-  const all=(d.allScenes||[]).map(x=>{ const c=conv(x); c.mine=!!x.mine; c.cast=x.cast||""; delete c.done; delete c.uncertain; c.extra=c.extra.split("\n").filter(l=>!l.startsWith("⚠️")).join("\n"); return c; });
+  const prevDone={}; [...(prev?.scenes||[]),...(prev?.all||[])].forEach(x=>{ if(x.done) prevDone[x.sceneNo+"|"+(x.team||"")]=true; });
+  const all=(d.allScenes||[]).map(x=>{ const c=conv(x); c.mine=!!x.mine; c.cast=x.cast||""; delete c.done; delete c.uncertain; c.extra=c.extra.split("\n").filter(l=>!l.startsWith("⚠️")).join("\n"); if(prevDone[c.sceneNo+"|"+(c.team||"")]) c.done=true; return c; });
   let finalScenes=scenes;
   if(prev && !replace){ const seen=new Set(prev.scenes.map(x=>x.sceneNo)); finalScenes=[...prev.scenes, ...scenes.filter(x=>!seen.has(x.sceneNo))]; }
   else if(prev){ const doneMap=Object.fromEntries((prev.scenes||[]).map(x=>[x.sceneNo,x.done])); finalScenes.forEach(x=>{ if(doneMap[x.sceneNo]) x.done=true; }); }
@@ -1185,7 +1194,7 @@ $("#btnParse").onclick=async()=>{
 };
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.02-5";
+const APP_VERSION="2026.11.02-6";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
