@@ -279,8 +279,8 @@ main{overflow-x:hidden}
 .scene.drag{transition:none}
 .scene.snap{transition:transform .22s ease}
 .scene::after,.scene::before{position:absolute;top:50%;transform:translateY(-50%);font-size:13px;font-weight:800;white-space:nowrap;opacity:0;transition:opacity .1s;pointer-events:none}
-.scene::after{content:"✓ Çekildi";left:calc(100% + 18px);color:var(--green)}
-.scene::before{content:"↺ Çekilmedi";right:calc(100% + 18px);color:var(--mute)}
+.scene::after{content:"✓ Çekildi";content:"✓ Çekildi" / "";left:calc(100% + 18px);color:var(--green)}
+.scene::before{content:"↺ Çekilmedi";content:"↺ Çekilmedi" / "";right:calc(100% + 18px);color:var(--mute)}
 .scene.sl::after,.scene.sr::before{opacity:.55}
 .scene.sl.go::after,.scene.sr.go::before{opacity:1}
 .scene.sl.go{border-color:var(--green)}
@@ -359,7 +359,7 @@ main{overflow-x:hidden}
   <div class="grab"></div>
   <h2>Karakter adın</h2>
   <p class="hint">Programda adın nasıl geçiyorsa öyle yaz. Lakap veya oyuncu numarası da varsa ekleyebilirsin (ör. "Oruç, Oruç Furtuna, 1").</p>
-  <input type="text" id="charIn2" autocomplete="off" autocapitalize="words">
+  <input type="text" id="charIn2" aria-label="Karakter adın" autocomplete="off" autocapitalize="words">
   <button class="btn" id="btnCharSave">Kaydet</button>
 </div>
 
@@ -446,16 +446,16 @@ function groupLines(items, tol){
   return lines;
 }
 
+function headerCols(L){
+  const names=L.items.map(i=>up(i.s));
+  if(!(names.includes("SAHNE") && names.includes("ZAMAN") && (names.includes("ÖZET")||names.includes("OYUNCULAR")))) return null;
+  const cols=[];
+  L.items.forEach(i=>{ const n=up(i.s); if(COLKEY[n]) cols.push({name:n,key:COLKEY[n],cx:i.x+i.w/2,x:i.x}); });
+  cols.sort((a,b)=>a.cx-b.cx);
+  return cols;
+}
 function findHeader(lines){
-  for(const L of lines){
-    const names=L.items.map(i=>up(i.s));
-    if(names.includes("SAHNE") && names.includes("ZAMAN") && (names.includes("ÖZET")||names.includes("OYUNCULAR"))){
-      const cols=[];
-      L.items.forEach(i=>{ const n=up(i.s); if(COLKEY[n]) cols.push({name:n,key:COLKEY[n],cx:i.x+i.w/2,x:i.x}); });
-      cols.sort((a,b)=>a.cx-b.cx);
-      return {y:L.y,cols};
-    }
-  }
+  for(const L of lines){ const cols=headerCols(L); if(cols) return {y:L.y,cols}; }
   return null;
 }
 
@@ -522,6 +522,7 @@ function parse(pages, opts){
       }
       if(/EK[İI]P\s*$/.test(U) && U.length<16){ curTeam=U.replace(/\s+/g," "); L.kind="sep"; return; }
       if(hdr && Math.abs(L.y-hdr.y)<tol){ L.kind="sep"; return; }
+      const hc=headerCols(L); if(hc){ cols=hc; L.kind="sep"; return; } // another day's table header on the same page
       if(hdr && L.y>hdr.y){ L.kind="sep"; return; } // above header on this page: titles, crew list
       if(!cols){ L.kind="skip"; return; }
       // anchor line: has ZAMAN-like item in ZAMAN column, or SAYFA number + SAHNE
@@ -531,7 +532,7 @@ function parse(pages, opts){
       const hasSahne=tagged.some(t=>t.col.key==="sahne");
       const onlySayfa = tagged.length===1 && tagged[0].col.key==="sayfa";
       if(onlySayfa){ L.kind="sep"; return; } // page total
-      if(hasZaman || (hasSayfa && hasSahne)){ L.kind="anchor"; L.tagged=tagged; L.team=curTeam; L.date=curDate; anchors.push(L); return; }
+      if(hasZaman || (hasSayfa && hasSahne)){ L.kind="anchor"; L.tagged=tagged; L.team=curTeam; L.date=curDate; L.label=curLabel; anchors.push(L); return; }
       L.kind="cont"; L.tagged=tagged; L.team=curTeam; L.date=curDate;
     });
     // attach continuation lines to nearest anchor without crossing a separator
@@ -562,7 +563,9 @@ function parse(pages, opts){
         return out.replace(/\s+/g," ").trim();
       };
       curDate=A.date||curDate;
+      const lblSave=curLabel; if(A.label!==undefined) curLabel=A.label;
       const day=ensureDay();
+      curLabel=lblSave;
       if(A.date && A.date!=="unknown") day.date=A.date;
       const scene={
         sceneNo:text("sahne").replace(/\s*-+\s*/g,"-").replace(/^-|-$/g,""), blm:text("blm"), storyDay:text("gun"), pages:text("sayfa"),
@@ -779,7 +782,7 @@ function weekSummary(dates,today){
     <button class="whead" id="sumToggle" aria-expanded="${open}">
       <span class="big">${total}</span><span class="lb">sahne bu hafta<span class="sb">${who} · ${workDays} çekim günü${pages?` · ${fmtNum(pages)} sayfa`:""}</span></span>
       <span class="car">⌄</span></button>
-    <div class="wbody"><div class="wbin">
+    <div class="wbody"${open?"":" inert"}><div class="wbin">
       <div class="bars">${dates.map((d,i)=>{ const c=counts[i]; const k=iso(d);
         const h = c? Math.round(6+38*c/max) : 4;
         return `<button class="bar${c?" has":" zero"}${k===today?" today":""}" data-day="${k}"><b>${c===null?"–":c}</b><i style="height:${h}px"></i><span>${TR_SHORT[d.getDay()]}</span></button>`; }).join("")}</div>
@@ -860,6 +863,7 @@ function render(){
 /* ---------- sheets ---------- */
 let openSheetEl=null;
 function openSheet(el){ closeSheet(); openSheetEl=el; $("#scrim").classList.add("on"); el.classList.add("on"); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && openSheetEl && !S.busy) closeSheet(); });
 function closeSheet(){ if(openSheetEl){ openSheetEl.classList.remove("on"); openSheetEl=null; } $("#scrim").classList.remove("on"); }
 $("#scrim").addEventListener("click",()=>{ if(!S.busy) closeSheet(); });
 // swipe down to close
@@ -880,7 +884,7 @@ function scrollToDay(k){ const el=document.getElementById("day-"+k); if(el){ con
 
 $("#main").addEventListener("click",e=>{
   if(e.target.closest("#sumToggle")){ S.sumOpen=!S.sumOpen; try{ localStorage.setItem("setprog.sum",S.sumOpen?"1":"0"); }catch(_){}
-    const w=document.querySelector(".wsum"); w.classList.toggle("open",S.sumOpen); e.target.closest("#sumToggle").setAttribute("aria-expanded",S.sumOpen); return; }
+    const w=document.querySelector(".wsum"); w.classList.toggle("open",S.sumOpen); w.querySelector(".wbody").inert=!S.sumOpen; e.target.closest("#sumToggle").setAttribute("aria-expanded",S.sumOpen); return; }
   const bd=e.target.closest(".bar[data-day], .row[data-day]"); if(bd){ S.selected=bd.dataset.day; render(); scrollToDay(S.selected); return; }
   const sc=e.target.closest("[data-scene]");
   if(sc){ const [k,i]=sc.dataset.scene.split("|"); showScene(k, i[0]==="a"?i:+i); return; }
@@ -1084,7 +1088,7 @@ function ensurePdf(){
     const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
     pdfReady = loadScript(base+"pdf.min.js").then(()=>loadScript(base+"pdf.worker.min.js")).then(()=>{
       window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+"pdf.worker.min.js";
-    });
+    }).catch(e=>{ pdfReady=null; throw e; }); // let the next try download again
   }
   return pdfReady;
 }
@@ -1275,6 +1279,10 @@ $("#btnParse").onclick=async()=>{
     const pdfs=S.files.filter(f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name));
     const imgs=S.files.filter(f=>!(f.type==="application/pdf"||/\.pdf$/i.test(f.name)));
     const localDays=[]; const unreadPdfs=[]; const warns=[];
+    if(pdfs.length){
+      try{ await ensurePdf(); }
+      catch(e){ throw new Error("PDF okuyucu indirilemedi. İnternet bağlantını kontrol edip tekrar dene."); }
+    }
     for(const f of pdfs){
       setStatus(true,`Okunuyor: ${f.name}`);
       let pages;
@@ -1291,7 +1299,16 @@ $("#btnParse").onclick=async()=>{
     const aiFiles=[...imgs,...unreadPdfs];
     if(aiFiles.length){
       const sample = await window.claude?.use?.("sample");
-      if(!sample) throw new Error((localDays.length?"PDF okundu, ama ":"")+"fotoğraf/taranmış dosya için yapay zekâ bu görünümde açık değil. Uygulamayı Claude içinden aç ya da metin içeren PDF yükle.");
+      if(!sample){
+        const why = imgs.length && !unreadPdfs.length
+          ? "Fotoğraftan okuma yapay zekâ ister; bu görünümde açık değil. Uygulamayı Claude içinden aç ya da programın PDF'ini yükle."
+          : `${aiFiles.map(f=>f.name).join(", ")}: set programı tablosu bulunamadı. Taranmış bir PDF ya da fotoğrafsa uygulamayı Claude içinden aç, yapay zekâ okusun.`;
+        if(!localDays.length) throw new Error(why);
+        warns.push(aiFiles.map(f=>f.name).join(", ")+" okunamadı");
+      }
+    }
+    if(aiFiles.length && (await window.claude?.use?.("sample"))){
+      const sample = await window.claude.use("sample");
       let maxImg=12, imagesOk=true;
       try{ const lim=await sample.limits(); if(lim && lim.images===false) imagesOk=false; if(typeof lim?.images==="number") maxImg=lim.images; if(typeof lim?.maxImages==="number") maxImg=lim.maxImages; }catch(_){}
       const images=[], texts=[];
@@ -1379,7 +1396,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.02-10";
+const APP_VERSION="2026.11.02-11";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
