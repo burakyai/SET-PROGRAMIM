@@ -6,7 +6,7 @@ Sürüm: `a56a88b` · Tarayıcı: Chromium 1.63, iPhone 13 görünümü (390px) 
 | --- | --- |
 | S1 | 0 |
 | S2 | 1 |
-| S3 | 3 |
+| S3 | 4 |
 | S4 | 3 |
 
 ### BUG-001: Aynı sayfada iki gün varsa ikinci tablo başlığı sahne sanılıyor
@@ -19,7 +19,7 @@ Gerçekleşen: Sahne numarası "SAHNE 50", oyuncular "OYUNCULAR KAPTAN-…", say
 Kanıt: F01-E2, F01-E4, F06-H1 başarısız.
 Neden: Her sayfada yalnız ilk tablo başlığı aranıyor. Gün etiketi, sahneler gününe bağlanmadan önce bir sonraki tarih satırıyla eziliyor.
 Not: Gönderilen 12 gerçek programın hepsinde her gün ayrı sayfada, yani şimdiye kadar denk gelmemiş.
-Durum: düzeltildi (aşağıdaki commit)
+Durum: düzeltildi, eac4ab2
 
 ### BUG-002: İnternet yokken yanıltıcı hata, internet gelince tekrar deneme çalışmıyor
 
@@ -30,7 +30,7 @@ Durum: düzeltildi (aşağıdaki commit)
 Beklenen: "İnternet yok" diyen bir mesaj, ikinci denemede okuma.
 Gerçekleşen: "fotoğraf/taranmış dosya için yapay zekâ bu görünümde açık değil" mesajı çıkıyor. İkinci deneme de aynı hatayı veriyor, çünkü başarısız indirme hafızada kalıyor. Ancak sayfa yenilenince düzeliyor.
 Kanıt: F01-N3 başarısız.
-Durum: düzeltildi
+Durum: düzeltildi, eac4ab2
 
 ### BUG-003: Program olmayan PDF'te yanıltıcı mesaj
 
@@ -39,7 +39,7 @@ Durum: düzeltildi
 
 Beklenen: "Bu PDF'te set programı tablosu bulunamadı".
 Gerçekleşen: Fotoğraf/yapay zekâ mesajı çıkıyor.
-Durum: düzeltildi
+Durum: düzeltildi, eac4ab2
 
 ### BUG-004: Ekran okuyucu her sahnede "Çekilmedi … Çekildi" okuyor
 
@@ -49,25 +49,39 @@ Durum: düzeltildi
 Beklenen: "5, Sahne, KAHVEHANE, …"
 Gerçekleşen: "↺ Çekilmedi 5 Sahne KAHVEHANE … ✓ Çekildi". Kaydırma ipucu yazıları (CSS ::before/::after) sahnenin adına giriyor.
 Kanıt: sahne düğmesi adı `↺ Çekilmedi 1…3 3 parça LİMAN … ✓ Çekildi`
-Durum: düzeltildi
+Durum: düzeltildi, eac4ab2
 
 ### BUG-005: Kapalı haftalık özetin satırları ekran okuyucuda okunuyor
 
 - Önem: S4 · Akış: F06 / F09-E2
 Gerçekleşen: Özet kapalıyken de 7 gün satırı ve hafta toplamı erişilebilirlik ağacında.
-Durum: düzeltildi
+Durum: düzeltildi, eac4ab2
 
 ### BUG-006: Karakter penceresindeki giriş kutusunun etiketi yok
 
 - Önem: S4 · Akış: F02 / F09-E2
 Gerçekleşen: `#charIn2` kutusu etiketsiz, VoiceOver sadece "metin alanı" diyor.
-Durum: düzeltildi
+Durum: düzeltildi, eac4ab2
 
 ### BUG-007: Esc tuşu açık pencereyi kapatmıyor
 
 - Önem: S4 · Akış: F09 / F09-E3
 Gerçekleşen: Klavyeyle (iPad klavyesi, masaüstü) açılan pencere Esc ile kapanmıyor.
-Durum: düzeltildi
+Durum: düzeltildi, eac4ab2
+
+### BUG-008: PDF ve fotoğraf birlikte yüklenince (Claude dışında) okunan PDF de kayboluyor
+
+- Önem: S3 · Akış: F01 / F01-E10
+1. GitHub Pages'te haftalık PDF ile bir fotoğrafı birlikte seç → Programı Oku.
+
+Beklenen: PDF'teki günler kaydedilir, fotoğraf için "okunamadı" uyarısı çıkar.
+Gerçekleşen: Fotoğraf yüzünden hata veriyor ve PDF'ten okunan günler de kaydedilmiyor.
+Durum: düzeltildi, eac4ab2
+
+## Sonuç
+
+- 34 otomatik vaka (33 sentetik + 1 gerçek PDF grubu, 12 program): hepsi geçiyor.
+- 8 hata bulundu (S2: 1, S3: 4, S4: 3), 8'i de düzeltildi. Açık S1/S2 yok.
 
 ## Kontrol edilecek (tekrarlanamadı / elle)
 
