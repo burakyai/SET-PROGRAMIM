@@ -232,6 +232,19 @@ main{padding:0 16px}
 .wsum .bar.zero b{color:var(--dim)}
 .wsum .bar span{font-size:10px;color:var(--mute);font-weight:600;text-transform:uppercase}
 .wsum .bar.today span{color:var(--accent)}
+
+/* swipe to mark */
+main{overflow-x:hidden}
+.scene{position:relative;touch-action:pan-y}
+.scene.drag{transition:none}
+.scene.snap{transition:transform .22s ease}
+.scene::after,.scene::before{position:absolute;top:50%;transform:translateY(-50%);font-size:13px;font-weight:800;white-space:nowrap;opacity:0;transition:opacity .1s;pointer-events:none}
+.scene::after{content:"✓ Çekildi";left:calc(100% + 18px);color:var(--green)}
+.scene::before{content:"↺ Çekilmedi";right:calc(100% + 18px);color:var(--mute)}
+.scene.sl::after,.scene.sr::before{opacity:.55}
+.scene.sl.go::after,.scene.sr.go::before{opacity:1}
+.scene.sl.go{border-color:var(--green)}
+.scene.done{text-decoration:none}
 </style>
 </head>
 <body>
@@ -655,6 +668,17 @@ function sceneLine(s){
   return ln;
 }
 function noBox(s){ const n=shortNo(s.sceneNo); const c=n.txt.length>7?"s":n.txt.length>4?"m":""; return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`; }
+function sceneByRef(k,i){ const day=S.days[k]; if(!day) return null;
+  return (typeof i==="string" && i[0]==="a") ? day.all?.[+i.slice(1)] : day.scenes?.[+i]; }
+async function setDone(k,s,v){
+  const day=S.days[k]; if(!day||!s) return;
+  if(isDone(day,s)===v) return;
+  const key=s.sceneNo+"|"+(s.team||"");
+  const copy=JSON.parse(JSON.stringify(day));
+  (copy.scenes||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
+  (copy.all||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
+  try{ await Store.putDay(k,copy); }catch(e){ toast("Kaydedilemedi"); }
+}
 function isDone(day,s){
   const key=s.sceneNo+"|"+(s.team||"");
   return [...(day.scenes||[]),...(day.all||[])].some(x=>x.done && x.sceneNo+"|"+(x.team||"")===key);
@@ -873,14 +897,7 @@ function showScene(k,i){
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
     <button class="btn" id="btnDone">${isDone(day,s)?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
-  $("#btnDone").onclick=async()=>{
-    const v=!isDone(day,s); const key=s.sceneNo+"|"+(s.team||"");
-    const copy=JSON.parse(JSON.stringify(day));
-    (copy.scenes||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
-    (copy.all||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
-    closeSheet();
-    try{ await Store.putDay(k,copy); }catch(e){ toast("Kaydedilemedi"); }
-  };
+  $("#btnDone").onclick=async()=>{ closeSheet(); await setDone(k,s,!isDone(day,s)); };
   openSheet($("#sceneSheet"));
 }
 
@@ -1193,8 +1210,46 @@ $("#btnParse").onclick=async()=>{
   }
 };
 
+/* ---------- swipe: left = çekildi, right = çekilmedi ---------- */
+(()=>{
+  const TH=70; let st=null; let blockClick=false;
+  const main=$("#main");
+  main.addEventListener("pointerdown",e=>{
+    const el=e.target.closest(".scene[data-scene]"); if(!el || e.button>0) return;
+    st={el,x:e.clientX,y:e.clientY,dx:0,on:false,id:e.pointerId};
+  });
+  main.addEventListener("pointermove",e=>{
+    if(!st||e.pointerId!==st.id) return;
+    const dx=e.clientX-st.x, dy=e.clientY-st.y;
+    if(!st.on){
+      if(Math.abs(dy)>10 && Math.abs(dy)>Math.abs(dx)){ st=null; return; }
+      if(Math.abs(dx)<10) return;
+      st.on=true; st.el.classList.add("drag"); try{ st.el.setPointerCapture(e.pointerId); }catch(_){}
+    }
+    st.dx=Math.max(-140,Math.min(140,dx));
+    st.el.style.transform=`translateX(${st.dx}px)`;
+    st.el.classList.toggle("sl",st.dx<0); st.el.classList.toggle("sr",st.dx>0);
+    st.el.classList.toggle("go",Math.abs(st.dx)>=TH);
+  });
+  const end=async e=>{
+    if(!st||e.pointerId!==st.id) return;
+    const {el,dx,on}=st; st=null;
+    if(!on) return;
+    blockClick=true; setTimeout(()=>blockClick=false,350);
+    el.classList.remove("drag"); el.classList.add("snap"); el.style.transform="";
+    setTimeout(()=>el.classList.remove("snap","sl","sr","go"),240);
+    if(Math.abs(dx)>=TH){
+      const [k,i]=el.dataset.scene.split("|");
+      const sc=sceneByRef(k,i); const v=dx<0;
+      if(sc){ await setDone(k,sc,v); toast(v?"✓ Çekildi":"↺ Çekilmedi",1200); }
+    }
+  };
+  main.addEventListener("pointerup",end); main.addEventListener("pointercancel",end);
+  main.addEventListener("click",e=>{ if(blockClick){ e.stopImmediatePropagation(); e.preventDefault(); } },true);
+})();
+
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.02-6";
+const APP_VERSION="2026.11.02-7";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
