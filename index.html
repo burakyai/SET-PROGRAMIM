@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0e0d0c">
@@ -43,7 +43,7 @@ document.documentElement.setAttribute("data-theme",r);})();
 :root[data-theme="light"] .scrim{background:rgba(20,18,15,.35)}
 :root[data-theme="light"] .toast{box-shadow:0 6px 20px rgba(0,0,0,.12)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,-apple-system,sans-serif}
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,-apple-system,sans-serif}
 body{min-height:100vh;padding-bottom:calc(110px + var(--safe-b))}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
@@ -982,8 +982,12 @@ function showDayMenu(k){
   openSheet($("#daySheet"));
 }
 
+/* block pinch-zoom (iOS) */
+["gesturestart","gesturechange"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+let __lastTouch=0; document.addEventListener("touchend",e=>{ const n=Date.now(); if(n-__lastTouch<300 && !e.target.closest("input,textarea,select")) e.preventDefault(); __lastTouch=n; },{passive:false});
+
 /* ---------- takvime ekle (.ics) ---------- */
-function icsEsc(t){ return String(t??"").replace(/\\/g,"\\\\").replace(/;/g,"\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"); }
+function icsEsc(t){ return String(t??"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"); }
 function icsFold(line){ // 75 octet satır sınırı
   const out=[]; let cur="", len=0;
   for(const ch of line){ const b=new TextEncoder().encode(ch).length; if(len+b>73){ out.push(cur); cur=" "; len=1; } cur+=ch; len+=b; }
@@ -1031,19 +1035,25 @@ async function addToCalendar(keys){
   const {text,n}=buildIcs(keys);
   if(!n){ toast("Takvime eklenecek çekim günü yok"); return; }
   const name=(keys.length===1?"set-"+keys[0]:"set-hafta-"+keys[0])+".ics";
-  const ua=navigator.userAgent; const isIOS=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-  if(isIOS){
-    // iOS: takvim içe aktarma ekranını açar ("Tümünü Ekle")
-    const a=document.createElement("a");
-    a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(text);
-    a.download=name; document.body.appendChild(a); a.click(); a.remove();
-  } else {
-    const blob=new Blob([text],{type:"text/calendar;charset=utf-8"});
-    const u=URL.createObjectURL(blob); const a=document.createElement("a");
-    a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(u),4000);
-  }
-  toast(n+" çekim günü takvime hazırlandı",2200);
+  const blob=new Blob([text],{type:"text/calendar"});
+  const file=(()=>{ try{ return new File([text],name,{type:"text/calendar"}); }catch(_){ return null; } })();
+  const canShare = !!(file && navigator.canShare && navigator.canShare({files:[file]}));
+  const url=URL.createObjectURL(blob);
+  $("#manBody").innerHTML=`<h2>📅 Takvime ekle</h2>
+    <p class="hint">${n} çekim günü hazır. iPhone'da en kolayı <b>Takvimde aç</b>: açılan ekranda <b>Tümünü Ekle</b>'ye bas.</p>
+    <a class="btn" id="calOpen" href="${url}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Takvimde aç</a>
+    ${canShare?`<button class="btn ghost" id="calShare">Paylaş / Dosyalara kaydet</button>`:""}
+    <p class="hint" style="margin-top:14px">"Takvimde aç" çalışmazsa <b>Paylaş</b>'a bas → <b>Dosyalara Kaydet</b>, sonra Dosyalar'da dosyaya dokun → <b>Tümünü Ekle</b>.</p>`;
+  $("#calOpen").onclick=e=>{
+    // Ana ekran uygulamasında yeni sekme açılmazsa aynı pencerede aç
+    if(window.navigator.standalone){ e.preventDefault(); location.href=url; }
+  };
+  const sh=$("#calShare"); if(sh) sh.onclick=async()=>{
+    try{ await navigator.share({files:[file],title:"Set programı"}); }catch(err){ if(err?.name!=="AbortError") toast("Paylaşılamadı"); }
+  };
+  $("#manBody").onclick=null;
+  openSheet($("#manSheet"));
+  setTimeout(()=>URL.revokeObjectURL(url),10*60*1000);
 }
 $("#btnCal").onclick=()=>addToCalendar(weekDates().map(iso));
 
@@ -1369,7 +1379,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.02-9";
+const APP_VERSION="2026.11.02-10";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
