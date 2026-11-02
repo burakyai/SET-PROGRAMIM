@@ -202,6 +202,36 @@ main{padding:0 16px}
 .scene.other .no{width:52px;background:transparent}
 .fab{left:auto;right:18px;width:58px;height:58px;border-radius:50%;padding:0;bottom:calc(18px + var(--safe-b))}
 .fab svg{width:26px;height:26px}
+
+.wsum{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px}
+.wsum .whead{display:flex;align-items:center;gap:10px;width:100%;text-align:left}
+.wsum .whead .lb{flex:1;display:flex;flex-direction:column}
+.wsum .whead .sb{font-weight:500}
+.wsum .car{color:var(--mute);font-size:18px;transition:transform .2s;align-self:flex-start}
+.wsum.open .car{transform:rotate(180deg)}
+.wsum .wbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease}
+.wsum.open .wbody{grid-template-rows:1fr}
+.wsum .wbin{overflow:hidden}
+.wsum .rows{margin-top:12px;border-top:1px solid var(--line)}
+.wsum .row{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
+.wsum .row.today .rd{color:var(--accent)}
+.wsum .rd{font-weight:700}
+.wsum .rr b{color:var(--accent);font-size:15px}
+.wsum .rz{color:var(--mute);font-weight:500;font-size:12.5px}
+.wsum .tot{display:flex;justify-content:space-between;padding:10px 2px 2px;font-size:13.5px;font-weight:700}
+.wsum .tot b{color:var(--accent)}
+.wsum .tt{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.wsum .big{font-size:26px;font-weight:800;color:var(--accent);line-height:1}
+.wsum .lb{font-size:13.5px;font-weight:700}
+.wsum .sb{font-size:12px;color:var(--mute);margin-top:5px}
+.wsum .bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px;align-items:end}
+.wsum .bar{display:flex;flex-direction:column;align-items:center;gap:4px}
+.wsum .bar i{display:block;width:100%;max-width:26px;border-radius:5px;background:var(--panel2);min-height:4px}
+.wsum .bar.has i{background:var(--accent)}
+.wsum .bar b{font-size:13px;font-weight:800}
+.wsum .bar.zero b{color:var(--dim)}
+.wsum .bar span{font-size:10px;color:var(--mute);font-weight:600;text-transform:uppercase}
+.wsum .bar.today span{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -533,6 +563,7 @@ const S = {
   selected: iso(new Date()),
   files: [],
   busy: false,
+  sumOpen: (()=>{ try{ return localStorage.getItem("setprog.sum")==="1"; }catch(e){ return false; } })(),
   view: (()=>{ try{ return localStorage.getItem("setprog.view")||"mine"; }catch(e){ return "mine"; } })()
 };
 
@@ -644,6 +675,37 @@ function renderAll(k,day){
   });
   return h;
 }
+function pageNum(p){ const t=String(p||"").trim().replace(",","."); if(!t) return 0;
+  const m=t.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1]+ +m[2]/ +m[3];
+  const f=t.match(/^(\d+)\/(\d+)$/); if(f) return +f[1]/ +f[2];
+  const n=parseFloat(t); return isNaN(n)?0:n; }
+function fmtNum(n){ return (Math.round(n*100)/100).toString().replace(".",","); }
+function weekSummary(dates,today){
+  const counts=dates.map(d=>{ const day=S.days[iso(d)]; return day? (day.scenes||[]).length : null; });
+  const total=counts.reduce((a,c)=>a+(c||0),0);
+  const pagesOf=d=>((S.days[iso(d)]?.scenes)||[]).reduce((x,s)=>x+pageNum(s.pages),0);
+  const pages=dates.reduce((a,d)=>a+pagesOf(d),0);
+  const workDays=counts.filter(c=>c).length;
+  const max=Math.max(1,...counts.map(c=>c||0));
+  const who=S.character? esc(S.character.split(",")[0].trim()) : "Senin";
+  const open=S.sumOpen;
+  const rows=dates.map((d,i)=>{ const c=counts[i]; const k=iso(d); const day=S.days[k];
+    const pg=pagesOf(d);
+    const right = c===null ? `<span class="rz">program yok</span>` : !c ? `<span class="rz">sahnen yok</span>`
+      : `<b>${c}</b> sahne${day.totalScenes?`<span class="rz"> / ${day.totalScenes}</span>`:""}${pg?`<span class="rz"> · ${fmtNum(pg)} sf</span>`:""}`;
+    return `<button class="row${k===today?" today":""}" data-day="${k}"><span class="rd">${TR_DAYS[d.getDay()]} <span class="rz">${d.getDate()} ${TR_MON[d.getMonth()]}</span></span><span class="rr">${right}</span></button>`; }).join("");
+  return `<div class="wsum${open?" open":""}">
+    <button class="whead" id="sumToggle" aria-expanded="${open}">
+      <span class="big">${total}</span><span class="lb">sahne bu hafta<span class="sb">${who} · ${workDays} çekim günü${pages?` · ${fmtNum(pages)} sayfa`:""}</span></span>
+      <span class="car">⌄</span></button>
+    <div class="wbody"><div class="wbin">
+      <div class="bars">${dates.map((d,i)=>{ const c=counts[i]; const k=iso(d);
+        const h = c? Math.round(6+38*c/max) : 4;
+        return `<button class="bar${c?" has":" zero"}${k===today?" today":""}" data-day="${k}"><b>${c===null?"–":c}</b><i style="height:${h}px"></i><span>${TR_SHORT[d.getDay()]}</span></button>`; }).join("")}</div>
+      <div class="rows">${rows}</div>
+      <div class="tot"><span>Hafta toplamı</span><span><b>${total}</b> sahne${pages?` · ${fmtNum(pages)} sayfa`:""}</span></div>
+    </div></div></div>`;
+}
 function render(){
   const dates=weekDates(); const today=iso(new Date());
   const a=dates[0], b=dates[6];
@@ -673,6 +735,7 @@ function render(){
       <li>Set programının PDF'ini ya da fotoğrafını seç</li>
       <li>Sahnelerin gün gün buraya dizilir, sahneye dokununca özeti açılır</li></ol></div>`;
   }
+  if(S.view==="mine" && dates.some(d=>S.days[iso(d)])) html += weekSummary(dates,today);
   dates.forEach(d=>{
     const k=iso(d); const day=S.days[k];
     const label=TR_DAYS[d.getDay()];
@@ -683,7 +746,7 @@ function render(){
       if(day.shootDay) tags.push(`<span class="tag">${esc(day.shootDay)}</span>`);
       if(day.callTime) tags.push(`<span class="tag y">⏰ ${esc(day.callTime)}${day.setTime&&day.setTime!==day.callTime?" <span style=\"color:var(--mute)\">(set "+esc(day.setTime)+")</span>":""}</span>`);
       if(day.location) tags.push(`<span class="tag">📍 ${esc(day.location)}</span>`);
-      if(day.scenes?.length) tags.push(`<span class="tag">${day.scenes.length} sahne${day.totalScenes?" / "+day.totalScenes:""}</span>`);
+      tags.push(`<span class="tag y">🎬 ${day.scenes?.length||0} sahnen${day.totalScenes?` <span style="color:var(--mute)">/ ${day.totalScenes}</span>`:""}</span>`);
       if(tags.length) html+=`<div class="meta">${tags.join("")}</div>`;
     }
     html += `</div>${day?`<button class="dots" data-daymenu="${k}" aria-label="Gün seçenekleri">⋯</button>`:""}</div>`;
@@ -735,6 +798,9 @@ $("#strip").addEventListener("click",e=>{ const b=e.target.closest("[data-day]")
 function scrollToDay(k){ const el=document.getElementById("day-"+k); if(el){ const y=el.getBoundingClientRect().top+window.scrollY-$("header").offsetHeight-6; window.scrollTo({top:Math.max(0,y),behavior:"smooth"}); } }
 
 $("#main").addEventListener("click",e=>{
+  if(e.target.closest("#sumToggle")){ S.sumOpen=!S.sumOpen; try{ localStorage.setItem("setprog.sum",S.sumOpen?"1":"0"); }catch(_){}
+    const w=document.querySelector(".wsum"); w.classList.toggle("open",S.sumOpen); e.target.closest("#sumToggle").setAttribute("aria-expanded",S.sumOpen); return; }
+  const bd=e.target.closest(".bar[data-day], .row[data-day]"); if(bd){ S.selected=bd.dataset.day; render(); scrollToDay(S.selected); return; }
   const sc=e.target.closest("[data-scene]");
   if(sc){ const [k,i]=sc.dataset.scene.split("|"); showScene(k, i[0]==="a"?i:+i); return; }
   const dm=e.target.closest("[data-daymenu]");
@@ -1119,7 +1185,7 @@ $("#btnParse").onclick=async()=>{
 };
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.02-3";
+const APP_VERSION="2026.11.02-5";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
