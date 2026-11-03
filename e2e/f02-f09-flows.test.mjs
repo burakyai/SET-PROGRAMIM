@@ -48,7 +48,7 @@ test("F02-H1 karakter değişince sahneler ve çağrı saati yenilenir", async (
 test("F02-E1 karakter değişse de çekildi işareti korunur", async () => {
   const p = app.page;
   await upload(p, ["gunluk.pdf"]);
-  await sceneBtn(p, "5").click();
+  await sceneBtn(p, "5").locator(".chev").click();
   await p.getByRole("button", { name: /Çekildi olarak işaretle/ }).click();
   await setChar(p, "Nazlı"); await setChar(p, "Kaptan");
   assert.equal((await day("2026-11-09")).scenes.find((s) => s.sceneNo === "5").done, true);
@@ -94,7 +94,7 @@ test("F03-H2 Tüm program: bütün sahneler, ekip başlıkları, benimkiler vurg
 test("F04-H1/H2 düğmeyle ve kaydırarak işaretleme", async () => {
   const p = app.page;
   await upload(p, ["haftalik.pdf"]);
-  await sceneBtn(p, "20").click();
+  await sceneBtn(p, "20").locator(".chev").click();
   await p.getByRole("button", { name: /Çekildi olarak işaretle/ }).click();
   await sheetClosed(p, "#sceneSheet");
   assert.equal((await day("2026-11-09")).scenes.find((s) => s.sceneNo === "20").done, true);

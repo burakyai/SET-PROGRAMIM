@@ -99,7 +99,7 @@ main{padding:6px 18px 0}
 .scene .sum{font-size:12.5px;color:var(--sum);margin-top:6px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .scene.done{opacity:.5}
 .scene.done .no b{text-decoration:line-through}
-.chev{color:var(--dim);align-self:center;font-size:18px}
+.chev{color:var(--dim);align-self:stretch;display:flex;align-items:center;justify-content:center;font-size:20px;width:34px;margin:-11px -12px -11px 0;border-left:1px solid var(--line)}
 .dn-ic{font-size:11px}
 
 /* fab */
@@ -273,6 +273,33 @@ main{padding:0 16px}
 .themes .pv .l{background:#f6f4ef}.themes .pv .l b+b{background:#e2ddd3}
 .setrow{font-size:12.5px;color:var(--mute);margin-top:12px;line-height:1.45}
 
+/* now shooting */
+.nowbar{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:8px 8px 8px 12px}
+.nowbar[hidden]{display:none}
+.nowbar .nb-main{flex:1;min-width:0;text-align:left;color:inherit;display:flex;flex-direction:column;gap:1px}
+.nowbar .nb-k{font-size:10px;font-weight:800;letter-spacing:.8px;opacity:.75;display:flex;align-items:center;gap:6px}
+.nowbar .nb-k i{width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.nowbar .nb-t{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nowbar .nb-n{font-size:11.5px;font-weight:600;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nowbar .nb-b{flex:none;height:36px;border-radius:10px;padding:0 11px;font-size:13px;font-weight:800;background:rgba(0,0,0,.14);color:inherit}
+.nowbar .nb-x{width:32px;padding:0;font-size:16px;background:transparent}
+.scene.now{border-color:var(--accent)!important;box-shadow:0 0 0 2px var(--accent),0 8px 26px rgba(245,197,24,.22)}
+.scene.now .set{font-size:15px}
+.scene.other.now{background:var(--panel);border-style:solid;padding:11px 12px;opacity:1}
+.scene.other.now .no b{color:var(--accent);font-size:19px}
+.scene.other.now .set{color:var(--ink)}
+.nowbar .nb-k{white-space:nowrap;overflow:hidden}
+.scene.now .sum{-webkit-line-clamp:unset;display:block;color:var(--ink);font-size:14px}
+.scene .fm{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px;color:var(--mute);line-height:1.45;white-space:pre-wrap}
+.scene .fm-c{color:var(--ink);font-weight:600;margin-bottom:3px}
+.scene.nextup{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.day.hasnow .scene:not(.now):not(.nextup){opacity:.5}
+.pill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.7px;padding:2px 7px;border-radius:6px;margin-bottom:5px}
+.pill.now{background:var(--accent);color:var(--accent-ink)}
+.pill.next{background:var(--panel2);color:var(--mute);border:1px solid var(--line)}
+.btn.nowbtn{background:var(--panel2);color:var(--ink);border:1px solid var(--accent)}
+
 /* swipe to mark */
 main{overflow-x:hidden}
 .scene{position:relative;touch-action:pan-y}
@@ -313,6 +340,7 @@ main{overflow-x:hidden}
       <button class="manage" id="btnManage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Yüklenen programlar</button>
     </div>
   </div>
+  <div class="nowbar" id="nowbar" hidden></div>
 </header>
 
 <main id="main"></main>
@@ -632,6 +660,7 @@ const S = {
   selected: iso(new Date()),
   files: [],
   busy: false,
+  now: loadNow(),
   sumOpen: (()=>{ try{ return localStorage.getItem("setprog.sum")==="1"; }catch(e){ return false; } })(),
   view: (()=>{ try{ return localStorage.getItem("setprog.view")||"mine"; }catch(e){ return "mine"; } })()
 };
@@ -724,6 +753,61 @@ function sceneLine(s){
   return ln;
 }
 function noBox(s){ const n=shortNo(s.sceneNo); const c=n.txt.length>7?"s":n.txt.length>4?"m":""; return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`; }
+/* ---------- şimdi çekiliyor ---------- */
+const keyOf=s=>s.sceneNo+"|"+(s.team||"");
+function loadNow(){ try{ return JSON.parse(localStorage.getItem("setprog.now")||"null"); }catch(_){ return null; } }
+function saveNow(){ try{ S.now?localStorage.setItem("setprog.now",JSON.stringify(S.now)):localStorage.removeItem("setprog.now"); }catch(_){} }
+function dayOrder(day){ return day?.all?.length ? day.all : (day?.scenes||[]); }
+function nowScene(){ if(!S.now) return null; const d=S.days[S.now.date]; return dayOrder(d).find(x=>keyOf(x)===S.now.key)||null; }
+function nextAfter(date,key){
+  const day=S.days[date]; const list=dayOrder(day); const i=list.findIndex(x=>keyOf(x)===key); if(i<0) return null;
+  const team=list[i].team||"";
+  return list.slice(i+1).find(x=>(x.team||"")===team && !isDone(day,x)) || null;
+}
+function focusMore(s){
+  const parts=[];
+  if(s.characters?.length) parts.push(`<div class="fm-c">${s.characters.map(esc).join(" · ")}</div>`);
+  if(s.extra) parts.push(`<div class="fm-x">${esc(s.extra)}</div>`);
+  return parts.length?`<div class="fm">${parts.join("")}</div>`:"";
+}
+function cardFx(k,s){
+  if(!S.now || S.now.date!==k) return {cls:"",pill:""};
+  const key=keyOf(s);
+  if(key===S.now.key) return {cls:" now",pill:`<span class="pill now">● ŞİMDİ</span><br>`,more:focusMore(s)};
+  const nx=nextAfter(k,S.now.key); if(nx && keyOf(nx)===key) return {cls:" nextup",pill:`<span class="pill next">SIRADAKİ</span><br>`};
+  return {cls:"",pill:""};
+}
+function setNow(date,key){ S.now=key?{date,key}:null; saveNow(); render(); }
+function renderNowBar(){
+  const bar=$("#nowbar"); const s=nowScene();
+  if(!s){ bar.hidden=true; bar.innerHTML="";
+    // forget only if that day is loaded and the scene is really gone (not while data is still loading)
+    if(S.now && S.days[S.now.date]){ S.now=null; saveNow(); }
+    return; }
+  const nx=nextAfter(S.now.date,S.now.key);
+  bar.hidden=false;
+  bar.innerHTML=`<button class="nb-main" id="nbGo" aria-label="Şimdi çekilen sahneye git"><span class="nb-k"><i></i>ŞİMDİ${s.team?" · "+esc(s.team):""}</span>
+      <span class="nb-t">Sahne ${esc(s.sceneNo)} · ${esc(s.set||"")}</span>
+      <span class="nb-n">${nx?"Sıradaki: "+esc(nx.sceneNo)+(nx.set&&nx.set!==s.set?" · "+esc(nx.set):""):"Ekibin son sahnesi"}</span></button>
+    <button class="nb-b" id="nbDone" aria-label="Çekildi, modu kapat">✓</button>
+    ${nx?`<button class="nb-b" id="nbNext">Sıradaki ›</button>`:""}
+    <button class="nb-b nb-x" id="nbX" aria-label="Şimdi modunu kapat">✕</button>`;
+}
+function goToNow(open){
+  if(!S.now) return;
+  const d=parseIso(S.now.date);
+  if(iso(mondayOf(d))!==iso(S.weekStart)){ S.weekStart=mondayOf(d); }
+  S.selected=S.now.date; render();
+  const el=document.querySelector(`#day-${S.now.date} .scene.now`);
+  if(el){ const y=el.getBoundingClientRect().top+window.scrollY-$("header").offsetHeight-14; window.scrollTo({top:Math.max(0,y),behavior:"smooth"}); if(open) el.click(); }
+}
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("#nbGo,#nbDone,#nbNext,#nbX"); if(!t) return;
+  if(t.id==="nbGo") goToNow(false);
+  else if(t.id==="nbX"){ setNow(null); toast("Şimdi modu kapandı",1400); }
+  else { const s=nowScene(); if(s){ S.advance = t.id==="nbNext"; await setDone(S.now.date,s,true); toast("✓ Çekildi",1200); } }
+});
+
 function sceneByRef(k,i){ const day=S.days[k]; if(!day) return null;
   return (typeof i==="string" && i[0]==="a") ? day.all?.[+i.slice(1)] : day.scenes?.[+i]; }
 async function setDone(k,s,v){
@@ -733,7 +817,14 @@ async function setDone(k,s,v){
   const copy=JSON.parse(JSON.stringify(day));
   (copy.scenes||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
   (copy.all||[]).forEach(x=>{ if(x.sceneNo+"|"+(x.team||"")===key) x.done=v; });
+  const wasNow = v && S.now && S.now.date===k && S.now.key===key;
+  const nx = wasNow ? nextAfter(k,key) : null;
   try{ await Store.putDay(k,copy); }catch(e){ toast("Kaydedilemedi"); }
+  if(wasNow){
+    if(S.advance && nx){ S.now={date:k,key:keyOf(nx)}; saveNow(); render(); setTimeout(()=>goToNow(false),60); }
+    else setNow(null);
+  }
+  S.advance=false;
 }
 function isDone(day,s){
   const key=s.sceneNo+"|"+(s.team||"");
@@ -748,13 +839,15 @@ function renderAll(k,day){
     const done = isDone(day,s);
     const ln=sceneLine(s);
     if(s.mine){
-      h+=`<button class="scene mine${done?" done":""}" data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
-        <div class="body"><div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
-        ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}</div><div class="chev">›</div></button>`;
+      const fx=cardFx(k,s);
+      h+=`<button class="scene mine${done?" done":""}${fx.cls}" data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
+        <div class="body">${fx.pill}<div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
+        ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}${fx.more||""}</div><span class="chev" title="Detay">›</span></button>`;
     } else {
-      h+=`<button class="scene other${done?" done":""}" data-scene="${k}|a${i}">${noBox(s)}
-        <div class="body"><div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
-        ${s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:""}</div><div class="chev">›</div></button>`;
+      const fx=cardFx(k,s);
+      h+=`<button class="scene other${done?" done":""}${fx.cls}" data-scene="${k}|a${i}">${noBox(s)}
+        <div class="body">${fx.pill}<div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
+        ${fx.more!==undefined ? (s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:"")+fx.more : (s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:"")}</div><span class="chev" title="Detay">›</span></button>`;
     }
   });
   return h;
@@ -824,7 +917,7 @@ function render(){
     const k=iso(d); const day=S.days[k];
     const label=TR_DAYS[d.getDay()];
     const sub=d.getDate()+" "+TR_MON[d.getMonth()];
-    html += `<section class="day" id="day-${k}"><div class="dayhead"><div><div class="t">${label}<small>${sub}${k===today?" · Bugün":""}</small></div>`;
+    html += `<section class="day${S.now&&S.now.date===k&&nowScene()?" hasnow":""}" id="day-${k}"><div class="dayhead"><div><div class="t">${label}<small>${sub}${k===today?" · Bugün":""}</small></div>`;
     if(day){
       const tags=[];
       if(day.shootDay) tags.push(`<span class="tag">${esc(day.shootDay)}</span>`);
@@ -846,18 +939,20 @@ function render(){
         if(s.time) ln.push("⏱ "+esc(s.time));
         if(s.team) ln.push(esc(s.team));
         if(s.uncertain) ln.push("<span style=\"color:var(--accent-t)\">? teyit et</span>");
-        html += `<button class="scene${s.done?" done":""}" data-scene="${k}|${i}">
+        const fx=cardFx(k,s);
+        html += `<button class="scene${s.done?" done":""}${fx.cls}" data-scene="${k}|${i}">
           ${(()=>{const n=shortNo(s.sceneNo);const c=n.txt.length>7?"s":n.txt.length>4?"m":"";return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`;})()}
-          <div class="body"><div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
+          <div class="body">${fx.pill}<div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
           ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
-          ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}</div>
-          <div class="chev">›</div></button>`;
+          ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}${fx.more||""}</div>
+          <span class="chev" title="Detay">›</span></button>`;
       });
     }
     if(day?.notes) html += `<div class="daynote">📝 ${esc(day.notes)}</div>`;
     html += `</section>`;
   });
   $("#main").innerHTML=html;
+  renderNowBar();
 }
 
 /* ---------- sheets ---------- */
@@ -887,7 +982,12 @@ $("#main").addEventListener("click",e=>{
     const w=document.querySelector(".wsum"); w.classList.toggle("open",S.sumOpen); w.querySelector(".wbody").inert=!S.sumOpen; e.target.closest("#sumToggle").setAttribute("aria-expanded",S.sumOpen); return; }
   const bd=e.target.closest(".bar[data-day], .row[data-day]"); if(bd){ S.selected=bd.dataset.day; render(); scrollToDay(S.selected); return; }
   const sc=e.target.closest("[data-scene]");
-  if(sc){ const [k,i]=sc.dataset.scene.split("|"); showScene(k, i[0]==="a"?i:+i); return; }
+  if(sc){ const [k,i]=sc.dataset.scene.split("|"); const ref=i[0]==="a"?i:+i;
+    if(e.target.closest(".chev")){ showScene(k,ref); return; }
+    const sObj=sceneByRef(k,i); if(!sObj) return;
+    const on=S.now&&S.now.date===k&&S.now.key===keyOf(sObj);
+    setNow(on?null:k, on?null:keyOf(sObj));
+    return; }
   const dm=e.target.closest("[data-daymenu]");
   if(dm){ showDayMenu(dm.dataset.daymenu); }
 });
@@ -953,7 +1053,15 @@ function showScene(k,i){
     <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(s.synopsis):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
+    <button class="btn nowbtn" id="btnNow">${S.now&&S.now.date===k&&S.now.key===keyOf(s)?"■ Şimdi modunu kapat":"▶ Şimdi bunu çekiyoruz"}</button>
     <button class="btn" id="btnDone">${isDone(day,s)?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
+  $("#btnNow").onclick=async()=>{
+    closeSheet();
+    const on=S.now&&S.now.date===k&&S.now.key===keyOf(s);
+    if(on){ setNow(null); return; }
+    if(isDone(day,s)) await setDone(k,s,false);
+    setNow(k,keyOf(s)); setTimeout(()=>goToNow(false),60);
+  };
   $("#btnDone").onclick=async()=>{ closeSheet(); await setDone(k,s,!isDone(day,s)); };
   openSheet($("#sceneSheet"));
 }
@@ -1396,7 +1504,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.02-11";
+const APP_VERSION="2026.11.03-2";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{

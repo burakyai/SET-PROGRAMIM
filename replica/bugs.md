@@ -78,9 +78,19 @@ Beklenen: PDF'teki günler kaydedilir, fotoğraf için "okunamadı" uyarısı ç
 Gerçekleşen: Fotoğraf yüzünden hata veriyor ve PDF'ten okunan günler de kaydedilmiyor.
 Durum: düzeltildi, eac4ab2
 
+### BUG-009: Uygulama açılırken "şimdi çekiliyor" işareti siliniyordu
+
+- Önem: S3 · Akış: F12 / F12-E3
+1. Bir sahneyi yak, uygulamayı kapatıp aç.
+
+Beklenen: Şerit ve vurgu yerinde.
+Gerçekleşen: Veriler yüklenmeden ilk çizimde sahne bulunamadığı için işaret siliniyordu.
+Durum: düzeltildi (bu özelliğin yayın commit'i)
+
 ## Sonuç
 
-- 34 otomatik vaka (33 sentetik + 1 gerçek PDF grubu, 12 program): hepsi geçiyor.
+- 40 otomatik vaka (39 + gerçek PDF grubu)
+- (ilk tur) 34 otomatik vaka (33 sentetik + 1 gerçek PDF grubu, 12 program): hepsi geçiyor.
 - 8 hata bulundu (S2: 1, S3: 4, S4: 3), 8'i de düzeltildi. Açık S1/S2 yok.
 
 ## Kontrol edilecek (tekrarlanamadı / elle)

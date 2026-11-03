@@ -15,7 +15,7 @@ Uçtan uca testler `e2e/` klasöründe (Playwright + Node'un kendi test aracı).
 ```bash
 npm install
 npx playwright install chromium
-npm test                                    # 34 vaka
+npm test                                    # 39 vaka
 REAL_PDF_DIR=~/programlar npm run test:real # kendi PDF'lerinle tutarlılık kontrolü
 ```
 

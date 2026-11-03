@@ -97,7 +97,7 @@ test("F01-E6 'Programı Oku'ya çift tıklama sahneleri çoğaltmaz", async () =
 test("F01-E7 revize (değiştir): silinen sahne gider, sıra yenilenir, işaret korunur", async () => {
   const p = app.page;
   await upload(p, ["gunluk.pdf"]);
-  await p.getByRole("button", { name: /^1…3/ }).first().click();
+  await p.getByRole("button", { name: /^1…3/ }).first().locator(".chev").click();
   await p.getByRole("button", { name: /Çekildi olarak işaretle/ }).click();
   await upload(p, ["revize.pdf"]);
   const d = (await stored(p)).days["2026-11-09"];
