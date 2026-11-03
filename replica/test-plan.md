@@ -13,7 +13,7 @@ Akışlar
 - **F07** Takvime ekle (.ics)
 - **F08** Tema (Otomatik / Açık / Koyu)
 - **F09** Kalıcılık, erişilebilirlik, düzen
-- **F12** Şimdi çekiliyor (dokun → yanar, tekrar dokun → söner)
+- **F12** Şimdi çekiliyor: tek dokunuş = detay, çift dokunuş = yak/söndür, birden çok = blok
 - **F10** Otomatik güncelleme (yalnız GitHub Pages) · **F11** Fotoğraftan yapay zekâ ile okuma (yalnız Claude içinde)
 
 | vaka | akış | tür | adımlar | beklenen | oto |
@@ -56,9 +56,11 @@ Akışlar
 | F09-E4 | | konsol | tüm akışlar | konsol hatası yok | e2e |
 | F10-M1 | güncelleme | GitHub Pages | yeni sürüm yayınla, uygulamayı aç | birkaç dakikada yeni sürüm | elle |
 | F11-M1 | yapay zekâ | Claude içinde fotoğraf | | sahneler çıkar | elle |
-| F12-H1 | şimdi | mutlu | Tüm programda karta dokun | şerit, kart vurgusu, sıradaki, özet + oyuncular kartta, detay açılmaz | e2e |
-| F12-H2 | | mutlu | aynı karta tekrar / başka karta dokun | söner / diğeri yanar | e2e |
-| F12-H3 | | mutlu | › işaretine dokun | detay açılır, yanmaz | e2e |
-| F12-E1 | | uç: ✓ | şeritte ✓ | çekildi, söner (zincir yok) | e2e |
-| F12-E2 | | uç: Sıradaki › | | çekildi + sıradakine geçer, çekilmişleri atlar, ekip sonunda düğme yok | e2e |
-| F12-E3 | | uç: kaydırma + yenileme | | kaydırınca söner; yenilemede ve başka haftada şerit kalır | e2e |
+| F12-H0 | şimdi | mutlu | tek dokunuş | detay açılır, yanmaz | e2e |
+| F12-H1 | | mutlu | çift dokunuş | şerit, vurgu, sıradaki, bilgi kartta, detay açılmaz | e2e |
+| F12-H2 | | mutlu: blok | ikinci sahneye çift dokun, sonra tek tek söndür | blok 2 sahne, tek tek söner | e2e |
+| F12-E1 | | uç: ✓ | blokta ✓ | hepsi çekildi, söner | e2e |
+| F12-E2 | | uç: Sıradaki › | | blok biter, son sahneden sonrakine geçer, çekilmişleri atlar | e2e |
+| F12-E3 | | uç: kaydırma + yenileme | bloktan birini kaydır | sadece o söner; yenilemede blok kalır | e2e |
+| F12-E4 | | uç: başka gün | | yeni blok başlar | e2e |
+| F12-E5 | | uç: eski kayıt | tek sahnelik eski kayıt | okunur | e2e |
