@@ -87,9 +87,23 @@ Beklenen: Şerit ve vurgu yerinde.
 Gerçekleşen: Veriler yüklenmeden ilk çizimde sahne bulunamadığı için işaret siliniyordu.
 Durum: düzeltildi (bu özelliğin yayın commit'i)
 
+### BUG-010: İnternetsiz açılmıyor ve PDF okunmuyordu
+
+- Önem: S2 · Akış: F13 / F13-H1, F13-H2
+Gerçekleşen: PDF okuyucu her seferinde cdnjs'ten iniyordu ve uygulama telefona kaydedilmiyordu. Sette çekmeyen yerde ne açılıyor ne okuyordu.
+Düzeltme: pdf.js `lib/` içine gömüldü, service worker uygulamayı ve okuyucuyu telefona kaydediyor.
+Durum: düzeltildi (bu sürüm)
+
+### BUG-011: İnternet gelince tekrar deneme yine başarısız
+
+- Önem: S3 · Akış: F01 / F01-N3
+Gerçekleşen: Tarayıcı başarısız `import()`ı hatırladığı için ikinci deneme de hata veriyordu.
+Düzeltme: tekrar denemede adres değişiyor.
+Durum: düzeltildi (bu sürüm)
+
 ## Sonuç
 
-- 40 otomatik vaka (39 + gerçek PDF grubu)
+- 44 otomatik vaka (43 + gerçek PDF grubu)
 - (ilk tur) 34 otomatik vaka (33 sentetik + 1 gerçek PDF grubu, 12 program): hepsi geçiyor.
 - 8 hata bulundu (S2: 1, S3: 4, S4: 3), 8'i de düzeltildi. Açık S1/S2 yok.
 

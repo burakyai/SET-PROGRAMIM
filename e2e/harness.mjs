@@ -72,6 +72,8 @@ export async function openApp({ base, now, offlineCdn = false, viewport = "iphon
   });
   page.on("response", (r) => { if (r.status() >= 500) problems.push(`${r.status()} ${r.url()}`); });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  // bundled pdf.js (lib/) — "offlineCdn" simulates it failing to download
+  await ctx.route(/\/lib\/pdf[^/]*\.mjs(\?.*)?$/, (route) => offlineCdn ? route.abort("internetdisconnected") : route.fallback());
   await ctx.route(/cdnjs\.cloudflare\.com\/ajax\/libs\/pdf\.js\//, (route) => {
     if (offlineCdn) return route.abort("internetdisconnected");
     const u = route.request().url();
@@ -80,7 +82,7 @@ export async function openApp({ base, now, offlineCdn = false, viewport = "iphon
   });
   await page.goto(base);
   await page.waitForLoadState("domcontentloaded");
-  return { browser, ctx, page, problems, setCdnOffline: (v) => { offlineCdn = v; } };
+  return { browser, ctx, page, problems, setCdnOffline: (v) => { offlineCdn = v; }, setOffline: (v) => ctx.setOffline(v) };
 }
 
 // Upload one or more fixture PDFs through the real UI

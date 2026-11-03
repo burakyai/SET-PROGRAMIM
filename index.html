@@ -1209,12 +1209,15 @@ function setStatus(on,txt,isErr){
 
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Yüklenemedi: "+src)); document.head.appendChild(s); }); }
 let pdfReady=null;
-function ensurePdf(){
+function ensurePdf(){ ensurePdf.tries=ensurePdf.tries||0;
+  // pdf.js is bundled in ./lib so programs can be read without internet
   if(!pdfReady){
-    const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
-    pdfReady = loadScript(base+"pdf.min.js").then(()=>loadScript(base+"pdf.worker.min.js")).then(()=>{
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+"pdf.worker.min.js";
-    }).catch(e=>{ pdfReady=null; throw e; }); // let the next try download again
+    // a failed import() is remembered by the browser, so a retry needs a fresh URL
+    const u=new URL("lib/pdf.min.mjs", location.href); if(ensurePdf.tries++) u.searchParams.set("r",Date.now());
+    pdfReady = import(u.href).then(m=>{
+      m.GlobalWorkerOptions.workerSrc = new URL("lib/pdf.worker.min.mjs", location.href).href;
+      window.pdfjsLib = m;
+    }).catch(e=>{ pdfReady=null; throw e; }); // let the next try load again
   }
   return pdfReady;
 }
@@ -1236,7 +1239,7 @@ async function imageFileToBlob(file){
 async function pdfToParts(file,maxPages){
   await ensurePdf();
   const buf=await file.arrayBuffer();
-  const pdf=await window.pdfjsLib.getDocument({data:buf, disableWorker:true}).promise;
+  const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
   const texts=[], images=[];
   const n=pdf.numPages;
   for(let p=1;p<=n;p++){
@@ -1255,7 +1258,7 @@ async function pdfToParts(file,maxPages){
       const vp=page.getViewport({scale});
       const c=document.createElement("canvas"); c.width=Math.round(vp.width); c.height=Math.round(vp.height);
       const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
-      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      await page.render({canvas:c,canvasContext:ctx,viewport:vp}).promise;
       images.push(await canvasToBlob(c));
     }
   }
@@ -1375,7 +1378,7 @@ function localToDay(d, srcName, prev, replace){
 async function pdfToPages(file){
   await ensurePdf();
   const buf=await file.arrayBuffer();
-  const pdf=await window.pdfjsLib.getDocument({data:buf, disableWorker:true}).promise;
+  const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
   const pages=[];
   for(let p=1;p<=pdf.numPages;p++){
     const page=await pdf.getPage(p); const vp=page.getViewport({scale:1});
@@ -1407,7 +1410,7 @@ $("#btnParse").onclick=async()=>{
     const localDays=[]; const unreadPdfs=[]; const warns=[];
     if(pdfs.length){
       try{ await ensurePdf(); }
-      catch(e){ throw new Error("PDF okuyucu indirilemedi. İnternet bağlantını kontrol edip tekrar dene."); }
+      catch(e){ throw new Error("PDF okuyucu yüklenemedi. İnternet bağlantını kontrol edip tekrar dene (bir kez açıldıktan sonra internetsiz de çalışır)."); }
     }
     for(const f of pdfs){
       setStatus(true,`Okunuyor: ${f.name}`);
@@ -1522,7 +1525,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.03-3";
+const APP_VERSION="2026.11.03-4";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1568,6 +1571,11 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
   if(window.ResizeObserver) new ResizeObserver(set).observe(h);
   window.addEventListener("resize",set);
 })();
+
+/* ---------- offline: service worker ---------- */
+if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="127.0.0.1" || location.hostname==="localhost")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
 
 /* boot */
 render();

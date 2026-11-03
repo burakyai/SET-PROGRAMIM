@@ -14,6 +14,7 @@ Akışlar
 - **F08** Tema (Otomatik / Açık / Koyu)
 - **F09** Kalıcılık, erişilebilirlik, düzen
 - **F12** Şimdi çekiliyor: tek dokunuş = detay, çift dokunuş = yak/söndür, birden çok = blok
+- **F13** İnternetsiz kullanım
 - **F10** Otomatik güncelleme (yalnız GitHub Pages) · **F11** Fotoğraftan yapay zekâ ile okuma (yalnız Claude içinde)
 
 | vaka | akış | tür | adımlar | beklenen | oto |
@@ -64,3 +65,6 @@ Akışlar
 | F12-E3 | | uç: kaydırma + yenileme | bloktan birini kaydır | sadece o söner; yenilemede blok kalır | e2e |
 | F12-E4 | | uç: başka gün | | yeni blok başlar | e2e |
 | F12-E5 | | uç: eski kayıt | tek sahnelik eski kayıt | okunur | e2e |
+| F13-H1 | internetsiz | mutlu | bir kez açılır, internet kesilir, yeniden açılır, PDF yüklenir | uygulama açılır, PDF okunur | e2e |
+| F13-H2 | | mutlu | PDF yükle | PDF okuyucu uygulamanın kendi dosyasından gelir, dış sunucuya istek yok | e2e |
+| F13-M1 | | iPhone | uçak modunda ana ekrandan aç, PDF yükle | çalışır | elle |
