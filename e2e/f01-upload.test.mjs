@@ -163,6 +163,13 @@ test("F01-N5 gömülü PDF okuyucu bu cihazda çalışmazsa internetteki sürüm
   assert.equal((await stored(app.page)).days?.["2026-11-09"]?.scenes.length, 4);
 });
 
+test("F01-N6 iPhone Safari: akış döngüsü olmayan tarayıcıda PDF okunur", async () => {
+  await app.browser.close();
+  app = await openApp({ base: srv.base, safariStreams: true });
+  await upload(app.page, ["haftalik.pdf"]);
+  assert.equal((await stored(app.page)).days?.["2026-11-09"]?.scenes.length, 4);
+});
+
 test("F01-N4 program olmayan PDF: anlaşılır hata, kayıt yok", async () => {
   await upload(app.page, ["bos.pdf"], { wait: false });
   await assert.doesNotReject(app.page.getByText(/sahne tablosunun başlığı \(SAHNE · ZAMAN · ÖZET\) bulunamadı/).waitFor({ timeout: 15000 }));

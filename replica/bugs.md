@@ -107,7 +107,10 @@ Durum: düzeltildi (bu sürüm)
 Gerçekleşen: "38.BLM SON HALİ PROGRAM.pdf: set programı tablosu bulunamadı…"
 Neden: kesin değil. Uygulama "PDF açılamadı" ile "tablo bulunamadı"yı aynı mesajla gösteriyordu. Ya gömülü pdf.js 6 bu iPhone'da açılamıyor ya da dosyanın şablonu farklı. WebKit bu ortamda kurulamadığı için cihazda tekrarlanamadı.
 Yapılan: (1) gömülü okuyucu hata verirse internetteki pdf.js 3.11'e (önceden çalışan) otomatik geçiş, (2) ayrı mesajlar: okuyucu yüklenemedi / PDF açılamadı (hata metniyle) / yazı yok / tablo başlığı bulunamadı (sayfa ve yazı sayısıyla). Test: F01-N5.
-Durum: geçici çözüm yayında; PDF'in kendisiyle doğrulanacak
+Cihazdaki yeni mesaj: "PDF açılamadı (undefined is not a function (near '...t of e...'))".
+Asıl neden: pdf.js 6 metni okurken ReadableStream'i `for await` ile geziyor. iPhone Safari'de bu yok. Dosya açıldığı için yedek okuyucuya da geçilmiyordu.
+Düzeltme: sayfada ve PDF worker'ında eksik özellik ekleniyor (lib/streams-polyfill.js, lib/pdf.worker.safe.mjs). Ayrıca metin okuma hangi adımda hata verirse versin, yedek okuyucuya geçiliyor. Test: F01-N6 (Safari davranışını taklit eder).
+Durum: düzeltildi, cihazda doğrulanacak
 
 ## Sonuç
 

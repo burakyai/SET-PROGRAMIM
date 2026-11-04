@@ -1,9 +1,9 @@
 // Set Programım – internetsiz çalışma.
 // Uygulama dosyaları ve PDF okuyucu telefona kaydedilir. Sayfa önce internetten
 // istenir (güncellemeler gelsin), internet yoksa kayıtlı kopya açılır.
-const CACHE = "setprog-v2026.11.04-1";
+const CACHE = "setprog-v2026.11.04-2";
 const CORE = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-512.png",
-  "lib/pdf.min.mjs", "lib/pdf.worker.min.mjs"];
+  "lib/pdf.min.mjs", "lib/pdf.worker.min.mjs", "lib/pdf.worker.safe.mjs", "lib/streams-polyfill.js"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

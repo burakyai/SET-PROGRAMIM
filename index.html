@@ -1216,8 +1216,8 @@ function ensurePdf(){ ensurePdf.tries=ensurePdf.tries||0;
   if(!pdfReady){
     // a failed import() is remembered by the browser, so a retry needs a fresh URL
     const u=new URL("lib/pdf.min.mjs", location.href); if(ensurePdf.tries++) u.searchParams.set("r",Date.now());
-    pdfReady = import(u.href).then(m=>{
-      m.GlobalWorkerOptions.workerSrc = new URL("lib/pdf.worker.min.mjs", location.href).href;
+    pdfReady = import(new URL("lib/streams-polyfill.js", location.href).href).then(()=>import(u.href)).then(m=>{
+      m.GlobalWorkerOptions.workerSrc = new URL("lib/pdf.worker.safe.mjs", location.href).href;
       PDFLIB = m;
     }).catch(e=>{ pdfReady=null; throw e; }); // let the next try load again
   }
@@ -1234,12 +1234,18 @@ function ensureCdnPdf(){
   return cdnPdfReady;
 }
 // open a PDF with the bundled engine; if that fails on this device, try the CDN engine
-async function openPdf(buf){
-  let first;
+async function openPdf(buf){ // bundled engine, for rendering (AI path)
   try{ await ensurePdf(); return await PDFLIB.getDocument({data:new Uint8Array(buf.slice(0))}).promise; }
-  catch(e){ first=e; console.warn("bundled pdf.js failed",e); }
-  try{ const lib=await ensureCdnPdf(); return await lib.getDocument({data:new Uint8Array(buf.slice(0)), disableWorker:true}).promise; }
-  catch(e2){ const err=new Error((first&&first.message)||String(first)); err.pdfLoad=true; err.second=e2; throw err; }
+  catch(e){ console.warn("bundled pdf.js failed",e); const lib=await ensureCdnPdf(); return await lib.getDocument({data:new Uint8Array(buf.slice(0)), disableWorker:true}).promise; }
+}
+async function extractPages(pdf){
+  const pages=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p); const vp=page.getViewport({scale:1});
+    const tc=await page.getTextContent();
+    pages.push({w:vp.width,h:vp.height,items:tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:i.height||Math.abs(i.transform[3])}))});
+  }
+  return pages;
 }
 
 function canvasToBlob(c,q=0.85){ return new Promise(r=>c.toBlob(r,"image/jpeg",q)); }
@@ -1396,14 +1402,13 @@ function localToDay(d, srcName, prev, replace){
 
 async function pdfToPages(file){
   const buf=await file.arrayBuffer();
-  const pdf=await openPdf(buf);
-  const pages=[];
-  for(let p=1;p<=pdf.numPages;p++){
-    const page=await pdf.getPage(p); const vp=page.getViewport({scale:1});
-    const tc=await page.getTextContent();
-    pages.push({w:vp.width,h:vp.height,items:tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:i.height||Math.abs(i.transform[3])}))});
-  }
-  return {pages, pdf};
+  let first;
+  // 1) bundled pdf.js (works offline)
+  try{ await ensurePdf(); const pdf=await PDFLIB.getDocument({data:new Uint8Array(buf.slice(0))}).promise; return {pages:await extractPages(pdf), pdf}; }
+  catch(e){ first=e; console.warn("bundled pdf.js failed",e); }
+  // 2) the CDN build that worked before (needs internet)
+  try{ const lib=await ensureCdnPdf(); const pdf=await lib.getDocument({data:new Uint8Array(buf.slice(0)), disableWorker:true}).promise; return {pages:await extractPages(pdf), pdf}; }
+  catch(e2){ const err=new Error((first&&first.message)||String(first)); err.pdfLoad=true; err.second=e2; throw err; }
 }
 
 async function saveDays(dayObjs){
@@ -1554,7 +1559,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.04-1";
+const APP_VERSION="2026.11.04-2";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{

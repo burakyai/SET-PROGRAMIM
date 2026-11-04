@@ -55,10 +55,12 @@ function pdfShim(base) {
   window.pdfjsLib={GlobalWorkerOptions:{},getDocument:(o)=>({promise:mod.then(m=>m.getDocument({data:o.data}).promise)})};})();`;
 }
 
-export async function openApp({ base, now, offlineCdn = false, libBroken = false, viewport = "iphone", colorScheme = "dark", storageState } = {}) {
+export async function openApp({ base, now, offlineCdn = false, libBroken = false, safariStreams = false, viewport = "iphone", colorScheme = "dark", storageState } = {}) {
   const browser = await chromium.launch();
   const opts = viewport === "iphone" ? { ...devices["iPhone 13"] } : { viewport: { width: 1440, height: 900 } };
   const ctx = await browser.newContext({ ...opts, colorScheme, storageState, timezoneId: "Europe/Istanbul" });
+  // Safari (iOS) cannot iterate ReadableStream with for-await: simulate it
+  if (safariStreams) await ctx.addInitScript(() => { delete ReadableStream.prototype[Symbol.asyncIterator]; delete ReadableStream.prototype.values; });
   const page = await ctx.newPage();
   // freeze "today" so year inference and week view are deterministic (Mon 2 Nov 2026)
   if (page.clock) await page.clock.install({ time: new Date(now || "2026-11-02T10:00:00+03:00") });
