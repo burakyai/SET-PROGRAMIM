@@ -101,6 +101,14 @@ Gerçekleşen: Tarayıcı başarısız `import()`ı hatırladığı için ikinci
 Düzeltme: tekrar denemede adres değişiyor.
 Durum: düzeltildi (bu sürüm)
 
+### BUG-012: iPhone'da PDF "set programı tablosu bulunamadı" diyor (cihazda raporlandı)
+
+- Önem: S1 (ana akış engelli) · Akış: F01 · Cihaz: iPhone, ana ekran uygulaması
+Gerçekleşen: "38.BLM SON HALİ PROGRAM.pdf: set programı tablosu bulunamadı…"
+Neden: kesin değil. Uygulama "PDF açılamadı" ile "tablo bulunamadı"yı aynı mesajla gösteriyordu. Ya gömülü pdf.js 6 bu iPhone'da açılamıyor ya da dosyanın şablonu farklı. WebKit bu ortamda kurulamadığı için cihazda tekrarlanamadı.
+Yapılan: (1) gömülü okuyucu hata verirse internetteki pdf.js 3.11'e (önceden çalışan) otomatik geçiş, (2) ayrı mesajlar: okuyucu yüklenemedi / PDF açılamadı (hata metniyle) / yazı yok / tablo başlığı bulunamadı (sayfa ve yazı sayısıyla). Test: F01-N5.
+Durum: geçici çözüm yayında; PDF'in kendisiyle doğrulanacak
+
 ## Sonuç
 
 - 44 otomatik vaka (43 + gerçek PDF grubu)

@@ -129,6 +129,7 @@ input:focus{border-color:var(--accent-t)}
 .btn.danger{background:transparent;color:var(--red);border:1px solid var(--redline);margin-top:10px}
 .status{margin-top:14px;font-size:13px;color:var(--mute);display:none;align-items:center;gap:10px;line-height:1.4}
 .status.on{display:flex}
+#statusTxt{white-space:pre-line}
 .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line2);border-top-color:var(--accent-t);animation:sp 0.8s linear infinite;flex:none}
 @keyframes sp{to{transform:rotate(360deg)}}
 .err{color:var(--red)}
@@ -1209,6 +1210,7 @@ function setStatus(on,txt,isErr){
 
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Yüklenemedi: "+src)); document.head.appendChild(s); }); }
 let pdfReady=null;
+let PDFLIB=null, cdnPdfReady=null;
 function ensurePdf(){ ensurePdf.tries=ensurePdf.tries||0;
   // pdf.js is bundled in ./lib so programs can be read without internet
   if(!pdfReady){
@@ -1216,10 +1218,28 @@ function ensurePdf(){ ensurePdf.tries=ensurePdf.tries||0;
     const u=new URL("lib/pdf.min.mjs", location.href); if(ensurePdf.tries++) u.searchParams.set("r",Date.now());
     pdfReady = import(u.href).then(m=>{
       m.GlobalWorkerOptions.workerSrc = new URL("lib/pdf.worker.min.mjs", location.href).href;
-      window.pdfjsLib = m;
+      PDFLIB = m;
     }).catch(e=>{ pdfReady=null; throw e; }); // let the next try load again
   }
   return pdfReady;
+}
+function ensureCdnPdf(){
+  if(!cdnPdfReady){
+    const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+    cdnPdfReady = loadScript(base+"pdf.min.js").then(()=>loadScript(base+"pdf.worker.min.js")).then(()=>{
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+"pdf.worker.min.js";
+      return window.pdfjsLib;
+    }).catch(e=>{ cdnPdfReady=null; throw e; });
+  }
+  return cdnPdfReady;
+}
+// open a PDF with the bundled engine; if that fails on this device, try the CDN engine
+async function openPdf(buf){
+  let first;
+  try{ await ensurePdf(); return await PDFLIB.getDocument({data:new Uint8Array(buf.slice(0))}).promise; }
+  catch(e){ first=e; console.warn("bundled pdf.js failed",e); }
+  try{ const lib=await ensureCdnPdf(); return await lib.getDocument({data:new Uint8Array(buf.slice(0)), disableWorker:true}).promise; }
+  catch(e2){ const err=new Error((first&&first.message)||String(first)); err.pdfLoad=true; err.second=e2; throw err; }
 }
 
 function canvasToBlob(c,q=0.85){ return new Promise(r=>c.toBlob(r,"image/jpeg",q)); }
@@ -1237,9 +1257,8 @@ async function imageFileToBlob(file){
 }
 
 async function pdfToParts(file,maxPages){
-  await ensurePdf();
   const buf=await file.arrayBuffer();
-  const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+  const pdf=await openPdf(buf);
   const texts=[], images=[];
   const n=pdf.numPages;
   for(let p=1;p<=n;p++){
@@ -1376,9 +1395,8 @@ function localToDay(d, srcName, prev, replace){
 }
 
 async function pdfToPages(file){
-  await ensurePdf();
   const buf=await file.arrayBuffer();
-  const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+  const pdf=await openPdf(buf);
   const pages=[];
   for(let p=1;p<=pdf.numPages;p++){
     const page=await pdf.getPage(p); const vp=page.getViewport({scale:1});
@@ -1408,17 +1426,28 @@ $("#btnParse").onclick=async()=>{
     const pdfs=S.files.filter(f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name));
     const imgs=S.files.filter(f=>!(f.type==="application/pdf"||/\.pdf$/i.test(f.name)));
     const localDays=[]; const unreadPdfs=[]; const warns=[];
-    if(pdfs.length){
-      try{ await ensurePdf(); }
-      catch(e){ throw new Error("PDF okuyucu yüklenemedi. İnternet bağlantını kontrol edip tekrar dene (bir kez açıldıktan sonra internetsiz de çalışır)."); }
-    }
+    const reasons={}; // file name -> reason it could not be read locally
     for(const f of pdfs){
       setStatus(true,`Okunuyor: ${f.name}`);
       let pages;
-      try{ pages=(await pdfToPages(f)).pages; }catch(e){ unreadPdfs.push(f); continue; }
+      try{ pages=(await pdfToPages(f)).pages; }
+      catch(e){
+        unreadPdfs.push(f);
+        reasons[f.name] = (e.second && !navigator.onLine) || /import|fetch|load|Yüklenemedi|module/i.test(String(e.message)+String(e.second?.message||""))
+          ? "PDF okuyucu yüklenemedi. İnternet bağlantını kontrol edip tekrar dene (bir kez açıldıktan sonra internetsiz de çalışır)."
+          : `PDF açılamadı (${String(e.message||e).slice(0,120)}).`;
+        continue;
+      }
       const res=window.SetParser.parse(pages,{fallbackDate:fallback});
       const total=res.days.reduce((a,d)=>a+d.totalScenes,0);
-      if(!total){ unreadPdfs.push(f); continue; }
+      if(!total){
+        unreadPdfs.push(f);
+        const words=pages.reduce((a,pg)=>a+pg.items.length,0);
+        reasons[f.name] = !words
+          ? "PDF'te okunabilir yazı yok (taranmış ya da fotoğraf gibi). Claude içinden açarsan yapay zekâ okur."
+          : `${pages.length} sayfa, ${words} yazı okundu ama sahne tablosunun başlığı (SAHNE · ZAMAN · ÖZET) bulunamadı. Şablon farklı olabilir: bu PDF'i bana gönder, okuyucuyu ona göre güncelleyelim.`;
+        continue;
+      }
       const mine=window.SetParser.filterForCharacter(res,character);
       warns.push(...res.warnings);
       mine.days.forEach(d=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(d.date)) localDays.push(localToDay(d,f.name,S.days[d.date],replace)); });
@@ -1431,7 +1460,7 @@ $("#btnParse").onclick=async()=>{
       if(!sample){
         const why = imgs.length && !unreadPdfs.length
           ? "Fotoğraftan okuma yapay zekâ ister; bu görünümde açık değil. Uygulamayı Claude içinden aç ya da programın PDF'ini yükle."
-          : `${aiFiles.map(f=>f.name).join(", ")}: set programı tablosu bulunamadı. Taranmış bir PDF ya da fotoğrafsa uygulamayı Claude içinden aç, yapay zekâ okusun.`;
+          : unreadPdfs.map(f=>`${f.name}: ${reasons[f.name]||"set programı tablosu bulunamadı."}`).join("\n");
         if(!localDays.length) throw new Error(why);
         warns.push(aiFiles.map(f=>f.name).join(", ")+" okunamadı");
       }
@@ -1525,7 +1554,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.03-4";
+const APP_VERSION="2026.11.04-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{

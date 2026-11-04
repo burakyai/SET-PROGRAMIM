@@ -1,7 +1,7 @@
 // Set Programım – internetsiz çalışma.
 // Uygulama dosyaları ve PDF okuyucu telefona kaydedilir. Sayfa önce internetten
 // istenir (güncellemeler gelsin), internet yoksa kayıtlı kopya açılır.
-const CACHE = "setprog-v2026.11.03-4";
+const CACHE = "setprog-v2026.11.04-1";
 const CORE = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-512.png",
   "lib/pdf.min.mjs", "lib/pdf.worker.min.mjs"];
 

@@ -156,8 +156,15 @@ test("F01-N3 internet yokken anlaşılır hata, internet gelince tekrar deneme �
   assert.equal((await stored(p)).days["2026-11-09"].scenes.length, 4);
 });
 
+test("F01-N5 gömülü PDF okuyucu bu cihazda çalışmazsa internetteki sürüme geçer", async () => {
+  await app.browser.close();
+  app = await openApp({ base: srv.base, libBroken: true });
+  await upload(app.page, ["haftalik.pdf"]);
+  assert.equal((await stored(app.page)).days?.["2026-11-09"]?.scenes.length, 4);
+});
+
 test("F01-N4 program olmayan PDF: anlaşılır hata, kayıt yok", async () => {
   await upload(app.page, ["bos.pdf"], { wait: false });
-  await assert.doesNotReject(app.page.getByText(/set programı tablosu bulunamadı/i).waitFor({ timeout: 15000 }));
+  await assert.doesNotReject(app.page.getByText(/sahne tablosunun başlığı \(SAHNE · ZAMAN · ÖZET\) bulunamadı/).waitFor({ timeout: 15000 }));
   assert.deepEqual((await stored(app.page)).days || {}, {});
 });

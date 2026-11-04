@@ -55,7 +55,7 @@ function pdfShim(base) {
   window.pdfjsLib={GlobalWorkerOptions:{},getDocument:(o)=>({promise:mod.then(m=>m.getDocument({data:o.data}).promise)})};})();`;
 }
 
-export async function openApp({ base, now, offlineCdn = false, viewport = "iphone", colorScheme = "dark", storageState } = {}) {
+export async function openApp({ base, now, offlineCdn = false, libBroken = false, viewport = "iphone", colorScheme = "dark", storageState } = {}) {
   const browser = await chromium.launch();
   const opts = viewport === "iphone" ? { ...devices["iPhone 13"] } : { viewport: { width: 1440, height: 900 } };
   const ctx = await browser.newContext({ ...opts, colorScheme, storageState, timezoneId: "Europe/Istanbul" });
@@ -73,7 +73,7 @@ export async function openApp({ base, now, offlineCdn = false, viewport = "iphon
   page.on("response", (r) => { if (r.status() >= 500) problems.push(`${r.status()} ${r.url()}`); });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   // bundled pdf.js (lib/) — "offlineCdn" simulates it failing to download
-  await ctx.route(/\/lib\/pdf[^/]*\.mjs(\?.*)?$/, (route) => offlineCdn ? route.abort("internetdisconnected") : route.fallback());
+  await ctx.route(/\/lib\/pdf[^/]*\.mjs(\?.*)?$/, (route) => (offlineCdn || libBroken) ? route.abort("failed") : route.fallback());
   await ctx.route(/cdnjs\.cloudflare\.com\/ajax\/libs\/pdf\.js\//, (route) => {
     if (offlineCdn) return route.abort("internetdisconnected");
     const u = route.request().url();
