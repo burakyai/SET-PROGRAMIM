@@ -43,6 +43,10 @@ document.documentElement.setAttribute("data-theme",r);})();
 :root[data-theme="light"] .scrim{background:rgba(20,18,15,.35)}
 :root[data-theme="light"] .toast{box-shadow:0 6px 20px rgba(0,0,0,.12)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* behave like an app, not a page: no text selection / long-press menu (inputs excepted) */
+html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+img,svg{-webkit-user-drag:none}
 html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,-apple-system,sans-serif}
 body{min-height:100vh;padding-bottom:calc(110px + var(--safe-b))}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
@@ -1760,7 +1764,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.09-1";
+const APP_VERSION="2026.11.09-2";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
