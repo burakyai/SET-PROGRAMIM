@@ -1,7 +1,8 @@
 // F12 Şimdi çekiliyor: tek dokunuş = detay, çift dokunuş = yak / söndür, birden çok sahne = blok.
 import { test, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { startServer, openApp, upload, stored, sheetClosed } from "./harness.mjs";
+import { startServer, openApp, upload, stored, sheetClosed, FIX } from "./harness.mjs";
+import path from "node:path";
 
 let srv, app;
 before(async () => { srv = await startServer(); });
@@ -112,4 +113,18 @@ test("F12-E5 eski kayıt biçimi (tek sahne) okunur", async () => {
   await p.evaluate(() => localStorage.setItem("setprog.now", JSON.stringify({ date: "2026-11-09", key: "20|1. EKİP" })));
   await p.reload(); await p.waitForTimeout(600);
   assert.match(await p.locator("#nowbar").innerText(), /Sahne 20/);
+});
+
+test("BUG-013 iPhone çentik payı geç gelince ilk gün başlığı üst barın altında kalmaz", async () => {
+  const p = app.page;
+  await upload(p, [path.join(FIX, "haftalik.pdf")]);
+  await p.evaluate(() => scrollTo(0, 0));
+  // iOS app web views report the top inset only after first paint
+  await p.evaluate(() => document.documentElement.style.setProperty("--safe-t", "59px"));
+  await p.waitForTimeout(400);
+  const r = await p.evaluate(() => ({
+    header: document.querySelector("header").getBoundingClientRect().bottom,
+    content: document.querySelector("#main").getBoundingClientRect().top,
+  }));
+  assert.ok(r.content >= r.header - 1, `içerik üst barın altında kalmamalı (header ${r.header}, içerik ${r.content})`);
 });

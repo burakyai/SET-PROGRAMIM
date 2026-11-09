@@ -123,3 +123,12 @@ Durum: düzeltildi, cihazda doğrulanacak
 - Takvimde aç: iPhone ana ekran uygulamasında Takvim ekranının açıldığını cihazda doğrula (F07-M1).
 - Canlıda pdf.js 3.11, testlerde 6.2 kullanılıyor. Metin çıkarma çıktısı iki sürümde aynı yapıda, ama canlıda bir kere gerçek PDF ile kontrol et.
 - pdf.js internetten (cdnjs) geliyor. Sette hiç çekmeyen bir yerde, daha önce hiç açılmamış bir telefonda ilk okuma çalışmaz. Uygulamayla birlikte paketlenirse bu tamamen çözülür.
+
+## BUG-013 — Açılışta ilk gün başlığı üst barın altında kalıyor (iPhone)
+- **Önem:** Orta · **Durum:** Düzeltildi (2026.11.10-1)
+- **Adımlar:** iPhone'da uygulamayı aç (TestFlight veya ana ekran).
+- **Beklenen:** "Pazartesi · 0 sahnem / 20" satırı üst barın hemen altında görünür.
+- **Gerçekleşen:** Satır üst barın altında kalıyor; Benim/Tüm program paneli açılıp kapanınca düzeliyor (kullanıcı videosu 10.11.2026).
+- **Kök neden:** Üst bar sabit (fixed); sayfa boşluğu bar yüksekliğinden ölçülüyor. iOS çentik payını ilk çizimden sonra veriyor ve bu pay barın padding'ine ekleniyor. ResizeObserver varsayılan olarak content-box izlediği için padding büyümesini görmedi ve boşluk 59 px eksik kaldı.
+- **Düzeltme:** Gözlemci border-box izliyor; çentik payı düzeltmesi ve font yüklenmesi sonrası yükseklik yeniden ölçülüyor.
+- **Test:** e2e/f12-now.test.mjs › BUG-013 (eski kodda kalıyor, yenide geçiyor).

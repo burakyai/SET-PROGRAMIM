@@ -1764,7 +1764,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.09-4";
+const APP_VERSION="2026.11.10-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1805,10 +1805,14 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 /* ---- fixed header height -> body offset ---- */
 (function(){
   const h=document.querySelector("header");
-  const set=()=>document.documentElement.style.setProperty("--hh",h.offsetHeight+"px");
+  const set=()=>{ const v=Math.ceil(h.getBoundingClientRect().height)+"px";
+    if(document.documentElement.style.getPropertyValue("--hh")!==v) document.documentElement.style.setProperty("--hh",v); };
+  window.__setHH=set;
   set();
-  if(window.ResizeObserver) new ResizeObserver(set).observe(h);
+  // border-box: the safe-area inset lives in the header's padding, which a content-box observer never sees
+  if(window.ResizeObserver){ const ro=new ResizeObserver(set); try{ ro.observe(h,{box:"border-box"}); }catch(_){ ro.observe(h); } }
   window.addEventListener("resize",set);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(set).catch(()=>{});
 })();
 
 /* ---------- offline: service worker ---------- */
@@ -1826,6 +1830,7 @@ function fixSafeArea(){
     if(h>0 && root.style.getPropertyValue("--safe-t")!==h+"px") root.style.setProperty("--safe-t",h+"px");
     // force a re-layout so sticky header and content take the new value
     root.classList.toggle("relayout"); void document.body.offsetHeight; root.classList.toggle("relayout");
+    if(window.__setHH) window.__setHH();
   }catch(_){}
 }
 let _touched=false; ["touchstart","wheel","keydown","pointerdown"].forEach(e=>addEventListener(e,()=>{_touched=true},{once:true,passive:true}));
