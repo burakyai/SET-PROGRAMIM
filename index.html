@@ -274,6 +274,19 @@ main{padding:0 16px}
 .themes .pv .l{background:#f6f4ef}.themes .pv .l b+b{background:#e2ddd3}
 .setrow{font-size:12.5px;color:var(--mute);margin-top:12px;line-height:1.45}
 
+/* script reader */
+.sheet.script{max-height:94vh}
+.scr-top{display:flex;align-items:center;justify-content:space-between;position:sticky;top:-10px;background:inherit;padding:4px 0 8px;z-index:1}
+.scr-top .nb-b{background:var(--panel2);color:var(--ink)}
+.scr-h{font-size:14.5px;font-weight:800;margin:18px 0 10px;display:flex;gap:10px;align-items:baseline;line-height:1.3}
+.scr-h span{font-family:"JetBrains Mono",monospace;color:var(--accent);font-size:16px;flex:none}
+.scr-act{font-size:15px;line-height:1.55;margin:0 0 12px;color:var(--ink2,var(--ink))}
+.scr-cue{font-size:12.5px;font-weight:800;letter-spacing:.6px;text-align:center;margin:14px 0 2px;color:var(--mute)}
+.scr-dlg,.scr-paren{font-size:16px;line-height:1.55;margin:0 22px 10px;padding:2px 8px;border-radius:8px}
+.scr-paren{font-style:italic;font-size:14px;color:var(--mute);margin-bottom:2px}
+.scr-cue.me{color:var(--accent)}
+.scr-dlg.me{background:color-mix(in srgb,var(--accent) 16%,transparent);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+
 /* now shooting */
 .nowbar{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:8px 8px 8px 12px}
 .nowbar[hidden]{display:none}
@@ -354,7 +367,7 @@ main{overflow-x:hidden}
 <div class="sheet" id="upSheet">
   <div class="grab"></div>
   <h2>Set programını yükle</h2>
-  <p class="hint">Set programı PDF'ini seç; telefonun içinde anında okunur, hiçbir yere gönderilmez. Fotoğraf/ekran görüntüsü yüklersen yapay zekâ ile okunur.</p>
+  <p class="hint">Set programı ya da bölüm senaryosu PDF'ini seç; telefonun içinde anında okunur, hiçbir yere gönderilmez. Senaryo yüklersen sahneye dokununca metni de açılır. Fotoğraf/ekran görüntüsü yüklersen yapay zekâ ile okunur.</p>
   <label class="f" for="charIn">Karakter adın</label>
   <input type="text" id="charIn" placeholder="ör. Oruç" autocomplete="off" autocapitalize="words">
   <label class="f">Program dosyası</label>
@@ -390,6 +403,11 @@ main{overflow-x:hidden}
   <p class="hint">Programda adın nasıl geçiyorsa öyle yaz. Lakap veya oyuncu numarası da varsa ekleyebilirsin (ör. "Oruç, Oruç Furtuna, 1").</p>
   <input type="text" id="charIn2" aria-label="Karakter adın" autocomplete="off" autocapitalize="words">
   <button class="btn" id="btnCharSave">Kaydet</button>
+</div>
+
+<div class="sheet script" id="scriptSheet">
+  <div class="grab"></div>
+  <div id="scriptBody"></div>
 </div>
 
 <div class="sheet" id="manSheet">
@@ -646,6 +664,119 @@ if(typeof module!=="undefined" && module.exports) module.exports=api; else root.
 
 </script>
 <script>
+/* Senaryo okuyucu: Final Draft / LibreOffice çıkışı Türkçe senaryo PDF'i -> sahneler.
+   Girdi: pages = [{w,h,items:[{s,x,y,w,h}]}] (pdf.js metin parçaları)
+   Çıktı: {episode, scenes:[{no, heading, blocks:[{t:"action"|"cue"|"dlg"|"paren", text}]}]}
+*/
+(function(root){
+"use strict";
+function up(s){ return String(s||"").replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase(); }
+const HEAD_RE=/^(İÇ\/DIŞ|DIŞ\/İÇ|İÇ-DIŞ|DIŞ-İÇ|İÇ|DIŞ|IÇ|DIS|İC|INT|EXT)(?=[.\s\/\-,]|$)/;
+
+function lines(page){
+  const its=page.items.slice().sort((a,b)=>b.y-a.y||a.x-b.x);
+  const out=[];
+  for(const it of its){
+    const L=out[out.length-1];
+    if(L && Math.abs(L.y-it.y)<=2.5){ L.items.push(it); }
+    else out.push({y:it.y,items:[it]});
+  }
+  out.forEach(L=>{
+    L.items.sort((a,b)=>a.x-b.x);
+    const m=[];
+    L.items.forEach(it=>{ const p=m[m.length-1];
+      if(p && it.x-(p.x+p.w)<1.5){ p.s+=it.s; p.w=it.x+it.w-p.x; }
+      else m.push(Object.assign({},it)); });
+    L.items=m; L.x=m[0].x;
+  });
+  return out;
+}
+
+function detectEpisode(pages, fileName){
+  const first=pages.slice(0,2).map(p=>p.items.map(i=>i.s).join(" ")).join(" ");
+  let m=up(first).match(/(\d{1,3})\s*\.?\s*BÖLÜM/);
+  if(m) return m[1];
+  m=String(fileName||"").match(/(\d{1,3})/);
+  return m?m[1]:"";
+}
+
+function parse(pages, opts){
+  opts=opts||{};
+  // left margin of scene numbers / body / dialogue / cue, measured from the document itself
+  // left edge of action text: the leftmost frequent line start that is not a scene number
+  const freq={}; let n=0;
+  pages.forEach(pg=>lines(pg).forEach(L=>{ if(/^\d+[A-Z]?\.?$/.test(L.items[0].s.trim())) return; const x=Math.round(L.x); freq[x]=(freq[x]||0)+1; n++; }));
+  const frequent=Object.keys(freq).map(Number).filter(x=>freq[x]>=Math.max(5,n*0.05)).sort((a,b)=>a-b);
+  const body=frequent[0] ?? 0;
+  const scenes=[]; let cur=null; let lastKind=null, lastY=null;
+
+  function push(kind,text,y){
+    if(!cur) return;
+    const b=cur.blocks[cur.blocks.length-1];
+    const gap=lastY===null?99:(lastY-y);
+    const sameBlock = b && b.t===kind && lastKind===kind && gap<18 && kind!=="cue";
+    if(sameBlock) b.text+=(/-$/.test(b.text)?"":" ")+text;
+    else cur.blocks.push({t:kind,text});
+    lastKind=kind; lastY=y;
+  }
+
+  pages.forEach((pg,pi)=>{
+    lastY=null;
+    lines(pg).forEach(L=>{
+      const txt=L.items.map(i=>i.s).join(" ").replace(/\s+/g," ").trim();
+      if(!txt) return;
+      // page number top-right ("12.")
+      if(L.items.length===1 && /^\d+\.$/.test(txt) && L.x>pg.w*0.6) return;
+      const firstIt=L.items[0];
+      // scene heading: a number in the left margin + İÇ/DIŞ text on the same line
+      if(firstIt.x < body-20 && /^\d+[A-Z]?$/.test(firstIt.s.trim()) && L.items.length>1){
+        const rest=L.items.slice(1).map(i=>i.s).join(" ").replace(/\s+/g," ").trim();
+        if(HEAD_RE.test(up(rest))){
+          cur={no:firstIt.s.trim(), heading:rest, page:pi+1, blocks:[]};
+          scenes.push(cur); lastKind="head"; lastY=L.y; return;
+        }
+      }
+      // ignore right-margin repeated scene numbers
+      if(L.items.length===1 && /^\d+[A-Z]?$/.test(txt) && (L.x<body-20 || L.x>pg.w*0.8)) return;
+      const dx=L.x-body;
+      let kind="action";
+      if(dx>110 && up(txt)===txt && txt.length<60) kind="cue";
+      else if(dx>40 && /^\(/.test(txt)) kind="paren";
+      else if(dx>40) kind="dlg";
+      push(kind,txt,L.y);
+    });
+  });
+  return {episode:detectEpisode(pages,opts.fileName), scenes};
+}
+
+// "24A-25-27" -> ["24A","25","27"]; parts that go backwards ("137-3") are sub-parts, not scenes
+function sceneParts(no){
+  const parts=String(no||"").split(/\s*[-,/+]\s*/).filter(Boolean);
+  const out=[]; let prev=-1;
+  for(const p of parts){
+    const m=p.match(/^(\d+)([A-Z]?)$/i); if(!m) continue;
+    const n=+m[1]; if(n<prev) continue;
+    out.push(m[1]+(m[2]||"").toUpperCase()); prev=n;
+  }
+  return out;
+}
+function findScenes(script, no){
+  if(!script) return [];
+  const by={}; script.scenes.forEach(s=>{ by[s.no.toUpperCase()]=s; });
+  const seen=new Set(); const out=[];
+  for(const p of sceneParts(no)){
+    const s=by[p]||by[p.replace(/[A-Z]$/,"")];
+    if(s && !seen.has(s.no)){ seen.add(s.no); out.push(s); }
+  }
+  return out;
+}
+
+const api={parse, sceneParts, findScenes, detectEpisode};
+if(typeof module!=="undefined" && module.exports) module.exports=api; else root.ScriptParser=api;
+})(typeof window!=="undefined"?window:globalThis);
+
+</script>
+<script>
 (() => {
 "use strict";
 const $ = s => document.querySelector(s);
@@ -832,6 +963,58 @@ document.addEventListener("click",async e=>{
   else if(t.id==="nbX"){ setNowKeys(null,null); toast("Şimdi modu kapandı",1400); }
   else await finishNow(t.id==="nbNext");
 });
+
+/* ---------- senaryolar (telefonda, IndexedDB) ---------- */
+const Scripts={
+  map:{}, db:null,
+  open(){ return new Promise(res=>{ try{
+    const rq=indexedDB.open("setprog-scripts",1);
+    rq.onupgradeneeded=()=>rq.result.createObjectStore("scripts",{keyPath:"episode"});
+    rq.onsuccess=()=>{ this.db=rq.result; res(this.db); }; rq.onerror=()=>res(null);
+  }catch(_){ res(null); } }); },
+  async load(){ const db=await this.open(); if(!db) return;
+    await new Promise(res=>{ const tx=db.transaction("scripts","readonly").objectStore("scripts").getAll();
+      tx.onsuccess=()=>{ (tx.result||[]).forEach(x=>this.map[x.episode]=x); res(); }; tx.onerror=()=>res(); }); },
+  async put(x){ this.map[x.episode]=x; const db=this.db||await this.open(); if(!db) return;
+    await new Promise(res=>{ const tx=db.transaction("scripts","readwrite"); tx.objectStore("scripts").put(x); tx.oncomplete=res; tx.onerror=res; }); },
+  async del(ep){ delete this.map[ep]; const db=this.db||await this.open(); if(!db) return;
+    await new Promise(res=>{ const tx=db.transaction("scripts","readwrite"); tx.objectStore("scripts").delete(ep); tx.oncomplete=res; tx.onerror=res; }); },
+  list(){ return Object.values(this.map).sort((a,b)=>(+b.episode)-(+a.episode)); }
+};
+function episodeOf(s){ return String(s.blm || (String(s.extra||"").match(/Bölüm:\s*(\d+)/)||[])[1] || "").trim(); }
+function myNames(){ return String(S.character||"").split(",").map(x=>x.trim()).filter(Boolean); }
+// "ORUÇ(V.O)", "ORUÇ-ŞİRİN(SES/EKRAN)" are mine; "ÇOCUK ORUÇ", "GENÇ ŞERİF" are another actor
+function isMyCue(cue){
+  const names=myNames(); if(!names.length) return false;
+  return String(cue).replace(/\(.*?\)/g,"").split(/[-\/,]/).some(part=>{
+    const p=part.trim(); if(!p || /^(ÇOCUK|GENÇ|KÜÇÜK|YAŞLI|GENC|COCUK)\s/i.test(p)) return false;
+    return window.SetParser.castMatches(p,names);
+  });
+}
+function scriptFor(s){ const ep=episodeOf(s); const sc=ep&&Scripts.map[ep]; return {ep, sc, found: sc?window.ScriptParser.findScenes(sc,s.sceneNo):[]}; }
+function scriptSection(s){
+  const {ep,sc,found}=scriptFor(s);
+  if(!sc) return `<div class="sd-sec"><h3>Senaryo</h3><p style="color:var(--dim);font-size:13.5px">${ep?ep+". bölümün":"Bu bölümün"} senaryo PDF'ini yüklersen sahnenin metni burada açılır.</p></div>`;
+  if(!found.length) return `<div class="sd-sec"><h3>Senaryo</h3><p style="color:var(--dim);font-size:13.5px">${ep}. bölüm senaryosunda bu sahne numarası bulunamadı.</p></div>`;
+  const lines=found.reduce((a,x)=>a+x.blocks.filter(b=>b.t==="cue"&&isMyCue(b.text)).length,0);
+  return `<button class="btn ghost" id="btnScript">📖 Senaryoyu oku · Sahne ${found.map(x=>esc(x.no)).join(", ")}${lines?` · ${lines} replik`:""}</button>`;
+}
+function showScript(s){
+  const {ep,found}=scriptFor(s); if(!found.length) return;
+  let html=`<div class="scr-top"><div class="sd-k">${esc(ep)}. bölüm · senaryo</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`;
+  found.forEach(sc=>{
+    html+=`<h3 class="scr-h"><span>${esc(sc.no)}</span>${esc(sc.heading)}</h3>`;
+    let mine=false;
+    sc.blocks.forEach(b=>{
+      if(b.t==="cue"){ mine=isMyCue(b.text); html+=`<p class="scr-cue${mine?" me":""}">${esc(b.text)}</p>`; }
+      else if(b.t==="dlg"||b.t==="paren"){ html+=`<p class="scr-${b.t}${mine?" me":""}">${esc(b.text)}</p>`; }
+      else { mine=false; html+=`<p class="scr-act">${esc(b.text)}</p>`; }
+    });
+  });
+  $("#scriptBody").innerHTML=html;
+  $("#scrClose").onclick=closeSheet;
+  openSheet($("#scriptSheet")); $("#scriptSheet").scrollTop=0;
+}
 
 function sceneByRef(k,i){ const day=S.days[k]; if(!day) return null;
   return (typeof i==="string" && i[0]==="a") ? day.all?.[+i.slice(1)] : day.scenes?.[+i]; }
@@ -1029,8 +1212,13 @@ function showManage(){
     <p class="hint">${ps.length?"Bir programı silince o programdan gelen bütün günler kalkar.":"Henüz program yüklenmedi."}</p>
     ${ps.map((p,i)=>{ const sc=p.days.reduce((a,d)=>a+(d.scenes?.length||0),0);
       return `<div class="prog"><div class="pi"><div class="pn">📄 ${esc(p.name)}</div><div class="pd">${fmtD(p.days[0].date)}${p.days.length>1?" – "+fmtD(p.days[p.days.length-1].date):""} · ${p.days.length} gün · ${sc} sahnen</div></div><button data-delp="${i}">Sil</button></div>`; }).join("")}
-    ${ps.length>1?`<button class="btn danger" id="delAll">Tüm programları sil</button>`:""}`;
+    ${ps.length>1?`<button class="btn danger" id="delAll">Tüm programları sil</button>`:""}
+    ${Scripts.list().length?`<h2 style="margin-top:22px">Senaryolar</h2>`+Scripts.list().map(x=>`<div class="prog"><div class="pi"><div class="pn">📖 ${esc(x.episode)}. bölüm</div><div class="pd">${esc(x.name)} · ${x.scenes.length} sahne</div></div><button data-dels="${esc(x.episode)}">Sil</button></div>`).join(""):""}`;
   $("#manBody").onclick=async e=>{
+    const ds=e.target.closest("[data-dels]"); if(ds){
+      if(!ds.dataset.sure){ ds.dataset.sure="1"; ds.textContent="Emin misin?"; return; }
+      await Scripts.del(ds.dataset.dels); toast("Senaryo silindi"); showManage(); return;
+    }
     const b=e.target.closest("[data-delp]"); if(b){
       if(!b.dataset.sure){ b.dataset.sure="1"; b.textContent="Emin misin?"; return; }
       const p=ps[+b.dataset.delp]; b.disabled=true;
@@ -1074,6 +1262,7 @@ function showScene(k,i){
     <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(s.synopsis):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
+    ${scriptSection(s)}
     <button class="btn nowbtn" id="btnNow">${isNowKey(k,keyOf(s))?"■ Şimdi'den çıkar":(S.now&&S.now.date===k?"＋ Bloğa ekle":"▶ Şimdi bunu çekiyoruz")}</button>
     <button class="btn" id="btnDone">${isDone(day,s)?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
   $("#btnNow").onclick=async()=>{
@@ -1082,6 +1271,7 @@ function showScene(k,i){
     toggleNow(k,s);
   };
   $("#btnDone").onclick=async()=>{ closeSheet(); await setDone(k,s,!isDone(day,s)); };
+  const bs=$("#btnScript"); if(bs) bs.onclick=()=>showScript(s);
   openSheet($("#sceneSheet"));
 }
 
@@ -1388,7 +1578,7 @@ function localToDay(d, srcName, prev, replace){
     if(s.notes) extra.push("Not: "+s.notes);
     if(s.uncertain) extra.push("⚠️ Programda adının yanında soru işareti var; teyit et.");
     return { sceneNo:s.sceneNo||"?", set:s.set||"", intExt:t.intExt, dayNight:t.dayNight, pages:s.pages||"", time:"", order: posByOrder[s.order] ? posByOrder[s.order]+" / "+teamTotal[s.team||""] : "",
-      team:(s.team||"").replace(/\s+/g,"").replace("EKİP"," EKİP"), characters:s.characters||[], synopsis:s.synopsis||"", extra:extra.join("\n"), uncertain:!!s.uncertain, done:false };
+      team:(s.team||"").replace(/\s+/g,"").replace("EKİP"," EKİP"), characters:s.characters||[], synopsis:s.synopsis||"", extra:extra.join("\n"), uncertain:!!s.uncertain, done:false, blm:s.blm||"" };
   };
   const scenes=d.scenes.map(conv);
   const prevDone={}; [...(prev?.scenes||[]),...(prev?.all||[])].forEach(x=>{ if(x.done) prevDone[x.sceneNo+"|"+(x.team||"")]=true; });
@@ -1432,6 +1622,7 @@ $("#btnParse").onclick=async()=>{
     const imgs=S.files.filter(f=>!(f.type==="application/pdf"||/\.pdf$/i.test(f.name)));
     const localDays=[]; const unreadPdfs=[]; const warns=[];
     const reasons={}; // file name -> reason it could not be read locally
+    const newScripts=[];
     for(const f of pdfs){
       setStatus(true,`Okunuyor: ${f.name}`);
       let pages;
@@ -1446,6 +1637,11 @@ $("#btnParse").onclick=async()=>{
       const res=window.SetParser.parse(pages,{fallbackDate:fallback});
       const total=res.days.reduce((a,d)=>a+d.totalScenes,0);
       if(!total){
+        const sc=window.ScriptParser.parse(pages,{fileName:f.name});
+        if(sc.scenes.length>=3 && sc.episode){
+          await Scripts.put({episode:sc.episode, name:f.name, scenes:sc.scenes, added:new Date().toISOString()});
+          newScripts.push(sc); continue;
+        }
         unreadPdfs.push(f);
         const words=pages.reduce((a,pg)=>a+pg.items.length,0);
         reasons[f.name] = !words
@@ -1507,12 +1703,17 @@ $("#btnParse").onclick=async()=>{
     // merge: later entries for same date win
     const byDate={}; [...localDays,...aiDayObjs].forEach(o=>byDate[o.date]=o);
     const all=Object.values(byDate);
+    if(!all.length && newScripts.length && !unreadPdfs.length && !imgs.length){
+      S.busy=false; S.files=[]; renderFiles(); closeSheet(); render();
+      toast(newScripts.map(x=>`${x.episode}. bölüm senaryosu eklendi · ${x.scenes.length} sahne`).join(" · "),3600);
+      return;
+    }
     if(!all.length) throw new Error("Programda tarih bulunamadı. 'Hangi gün?' alanını seçip tekrar dene.");
     setStatus(true,"Kaydediliyor…");
     const r=await saveDays(all);
     S.busy=false; S.files=[]; renderFiles(); closeSheet();
     S.weekStart=mondayOf(parseIso(r.firstDate)); S.selected=r.firstDate; render(); scrollToDay(r.firstDate);
-    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
+    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${newScripts.length?" · "+newScripts.map(x=>x.episode+". bölüm senaryosu").join(", "):""}${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
   }catch(e){
     S.busy=false; renderFiles();
     const m = e?.code==="not_granted" ? "Yapay zekâ izni verilmedi." : e?.code==="rate_limited" ? "Çok sık deneme yapıldı, biraz bekleyip tekrar dene." : (e?.message||"Bir hata oldu.");
@@ -1559,7 +1760,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.04-2";
+const APP_VERSION="2026.11.09-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1614,6 +1815,7 @@ if("serviceWorker" in navigator && (location.protocol==="https:" || location.hos
 /* boot */
 render();
 Store.init();
+Scripts.load();
 checkUpdate();
 })();
 

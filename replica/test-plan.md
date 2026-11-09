@@ -15,6 +15,7 @@ Akışlar
 - **F09** Kalıcılık, erişilebilirlik, düzen
 - **F12** Şimdi çekiliyor: tek dokunuş = detay, çift dokunuş = yak/söndür, birden çok = blok
 - **F13** İnternetsiz kullanım
+- **F14** Senaryo: PDF yükle, sahne detayında "Senaryoyu oku", replikler vurgulu
 - **F10** Otomatik güncelleme (yalnız GitHub Pages) · **F11** Fotoğraftan yapay zekâ ile okuma (yalnız Claude içinde)
 
 | vaka | akış | tür | adımlar | beklenen | oto |
@@ -68,3 +69,9 @@ Akışlar
 | F13-H1 | internetsiz | mutlu | bir kez açılır, internet kesilir, yeniden açılır, PDF yüklenir | uygulama açılır, PDF okunur | e2e |
 | F13-H2 | | mutlu | PDF yükle | PDF okuyucu uygulamanın kendi dosyasından gelir, dış sunucuya istek yok | e2e |
 | F13-M1 | | iPhone | uçak modunda ana ekrandan aç, PDF yükle | çalışır | elle |
+| F14-H1 | senaryo | mutlu | senaryo PDF'i yükle | "5. bölüm senaryosu eklendi · 9 sahne" | e2e |
+| F14-H2 | | mutlu | sahne detayı → Senaryoyu oku | parçalı sahne (1-2A-3 → 1, 2, 3), replik sayısı, benim repliklerim vurgulu | e2e |
+| F14-H3 | | uç | çok satırlı replik, ortak replik (KAPTAN-NAZLI) | birleşir, benim sayılır | e2e |
+| F14-E1 | | uç | senaryo yok | ipucu, başka bölüm eşleşmez | e2e |
+| F14-E2 | | uç | yenile, sil | telefonda kalır, silinir | e2e |
+| F14-R1 | | gerçek | 39. bölüm senaryosu (90 sayfa) | 139/139 sahne, Oruç replikleri vurgulu | elle (repoda değil) |

@@ -3,7 +3,7 @@
   "private": true,
   "description": "Haftalık set programı uygulaması – testler",
   "scripts": {
-    "test": "node --test --test-concurrency=1 e2e/f01-upload.test.mjs e2e/f02-f09-flows.test.mjs e2e/f12-now.test.mjs e2e/f13-offline.test.mjs",
+    "test": "node --test --test-concurrency=1 e2e/f01-upload.test.mjs e2e/f02-f09-flows.test.mjs e2e/f12-now.test.mjs e2e/f13-offline.test.mjs e2e/f14-script.test.mjs",
     "test:real": "node --test --test-concurrency=1 e2e/real-pdfs.test.mjs",
     "fixtures": "python3 e2e/fixtures/make_fixtures.py"
   },

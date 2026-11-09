@@ -137,3 +137,49 @@ if __name__ == "__main__":
     daily(OUT / "gunluk.pdf")
     daily(OUT / "revize.pdf", revise=True)
     print("ok")
+
+
+def script(path):
+    """Sentetik senaryo (5. bölüm): sahne no solda, başlık, açıklama, karakter, replik."""
+    from reportlab.lib.pagesizes import letter
+    LW, LH = letter
+    c = canvas.Canvas(str(path), pagesize=letter)
+    c.setFont("DV", 14); c.drawCentredString(LW / 2, 600, "DENİZ FENERİ"); c.drawCentredString(LW / 2, 560, "5.BÖLÜM")
+    c.showPage()
+    scenes = {
+        "1": ("DIŞ.GÜN.LİMAN", [("a", "Kaptan tekneyi yanaştırır, halatı atar."), ("c", "KAPTAN"), ("d", "Tut şu halatı Rıza, kaçırma!"),
+                                ("c", "RIZA"), ("d", "Tuttum kaptan, tuttum.")]),
+        "2": ("DIŞ.GÜN.LİMAN-İSKELE", [("a", "Nazlı uzaktan izler."), ("c", "ÇOCUK KAPTAN"), ("d", "Baba, ben de gelecem!")]),
+        "3": ("İÇ.GÜN.TEKNE", [("c", "KAPTAN(V.O)"), ("d", "Deniz bugün sert; kimse çıkmayacak."), ("a", "Rıza başını sallar.")]),
+        "4": ("İÇ.GÜN.KAHVEHANE", [("c", "RIZA"), ("d", "Kaptan yine inat etti.")]),
+        "10": ("İÇ.GECE.KAPTAN EV SALON", [("a", "Nazlı evi toplar."), ("c", "NAZLI"), ("d", "Geç kaldın yine."),
+                                           ("c", "KAPTAN"), ("d", "Liman karıştı, Nazlı. Uzun hikâye; yarın anlatırım, söz.")]),
+        "20": ("DIŞ.GECE.İSKELE", [("c", "KAPTAN-NAZLI"), ("d", "Hoşça kal.")]),
+        "30": ("DIŞ.GÜN.TEPE", [("a", "Selim tepeye çıkar.")]),
+        "31": ("İÇ.GÜN.KAPTAN TEKNE", [("a", "Kaptan tek başına ağ örer.")]),
+        "50": ("İÇ.GÜN.HASTANE", [("c", "KAPTAN"), ("d", "Buradayım.")]),
+    }
+    y = 700; page = 1
+    def newpage():
+        nonlocal y, page
+        c.showPage(); page += 1; y = 720
+        c.setFont("DV", 11.7); c.drawString(541, 745, f"{page}.")
+    c.setFont("DV", 11.7); c.drawString(541, 745, "1.")
+    for no, (head, blocks) in scenes.items():
+        if y < 160: newpage()
+        c.setFont("DV", 11.7); c.drawString(48.6, y, no); c.drawString(100.9, y, head); y -= 24
+        for kind, text in blocks:
+            if y < 120: newpage()
+            if kind == "a": c.drawString(100.9, y, text); y -= 24
+            elif kind == "c": c.drawString(240.6, y, text); y -= 12.4
+            else:
+                words = text.split(); line = ""
+                for w in words:
+                    if len(line) + len(w) > 34: c.drawString(170.8, y, line.strip()); y -= 12.4; line = ""
+                    line += w + " "
+                c.drawString(170.8, y, line.strip()); y -= 24
+    c.showPage(); c.save()
+
+
+if __name__ == "__main__":
+    script(OUT / "senaryo-5.pdf")
