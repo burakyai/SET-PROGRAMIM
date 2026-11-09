@@ -1,0 +1,11 @@
+{
+  "appId": "com.burakyoruk.setprogramim",
+  "appName": "Set Programım",
+  "webDir": "www",
+  "backgroundColor": "#0e0d0c",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0e0d0c",
+    "allowsLinkPreview": false
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "set-programim-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Set Programım'ın iPhone uygulaması (Capacitor kabuğu)",
+  "scripts": {
+    "build": "node build.mjs",
+    "sync": "npm run build && npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@fontsource/archivo": "^5.2.0",
+    "@fontsource/jetbrains-mono": "^5.2.0"
+  }
+}

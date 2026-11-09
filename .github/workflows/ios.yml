@@ -1,0 +1,80 @@
+name: iPhone uygulaması
+
+# Set Programım'ın iPhone sürümünü GitHub'ın Mac sunucusunda derler.
+# - "Run workflow" düğmesiyle elle başlatılır.
+# - App Store Connect anahtarları (Secrets) girilmişse imzalayıp TestFlight'a yükler.
+# - Anahtarlar yoksa sadece derlemenin hatasız olduğunu kontrol eder.
+on:
+  workflow_dispatch:
+    inputs:
+      yukle:
+        description: "TestFlight'a yükle"
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+    paths: ["app/**", "index.html", "lib/**", ".github/workflows/ios.yml"]
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      HAS_KEYS: ${{ secrets.APPSTORE_API_KEY != '' && secrets.APPSTORE_KEY_ID != '' && secrets.APPSTORE_ISSUER_ID != '' && secrets.APPLE_TEAM_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Xcode sürümü
+        run: |
+          ls -d /Applications/Xcode_*.app
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          [ -z "$X" ] && X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+
+      - name: Uygulamayı hazırla
+        working-directory: app
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          npx cap sync ios
+          python3 ios-customize.py
+
+      - name: Derleme kontrolü (simülatör, imzasız)
+        if: env.HAS_KEYS != 'true' || github.event_name == 'push' || inputs.yukle == false
+        working-directory: app/ios/App
+        run: |
+          set -eo pipefail
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 30
+
+      - name: Arşivle ve imzala
+        if: env.HAS_KEYS == 'true' && github.event_name == 'workflow_dispatch' && inputs.yukle
+        working-directory: app/ios/App
+        env:
+          API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -eo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          printf '%s' "$API_KEY" > "$KEY_PATH"
+          BUILD_NO=$(( ${{ github.run_number }} + 100 ))
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/App.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" CURRENT_PROJECT_VERSION=$BUILD_NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            archive | tail -n 40
+          sed -i '' "s/TEAM_ID_PLACEHOLDER/$TEAM_ID/" ../ExportOptions.plist
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/App.xcarchive \
+            -exportOptionsPlist ../ExportOptions.plist -exportPath $RUNNER_TEMP/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" | tail -n 40
+          echo "Yapı numarası $BUILD_NO TestFlight'a gönderildi." >> $GITHUB_STEP_SUMMARY
