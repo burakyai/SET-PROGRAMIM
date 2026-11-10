@@ -40,7 +40,7 @@ SETTE YANINDA
 
 İNTERNETSİZ VE HESAPSIZ
 • Program telefonunda okunur; hesap, üyelik ya da internet gerekmez
-• Dosyaların ve notların hiçbir sunucuya gönderilmez
+• Dosyaların ve işaretlerin hiçbir sunucuya gönderilmez
 
 Yazı içeren (taranmamış) PDF set programlarını okur: SAHNE · ZAMAN · MEKAN · OYUNCULAR · ÖZET sütunlu haftalık ve günlük programlar. Denemek için ilk açılışta "Örnek programla dene" düğmesine bas.
 
