@@ -181,6 +181,8 @@ input:focus{border-color:var(--accent-t)}
 .welcome h3{margin:0 0 8px;font-size:17px}
 .welcome ol{margin:0;padding-left:18px;color:var(--ink3);font-size:14px;line-height:1.7}
 .menu{display:flex;flex-direction:column;gap:0}
+.demo-btn{margin-top:16px;width:100%;height:46px;border-radius:12px;border:1px solid var(--line2);background:transparent;color:var(--ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.demo-note{margin:8px 2px 0;color:var(--mute);font-size:12.5px;line-height:1.4}
 
 /* ---- airy layout ---- */
 body{padding-bottom:calc(96px + var(--safe-b))}
@@ -1116,7 +1118,9 @@ function render(){
       <li>Aşağıdan <b>Program Yükle</b>'ye bas</li>
       <li>Karakter adını yaz</li>
       <li>Set programının PDF'ini ya da fotoğrafını seç</li>
-      <li>Sahnelerin gün gün buraya dizilir, sahneye dokununca özeti açılır</li></ol></div>`;
+      <li>Sahnelerin gün gün buraya dizilir, sahneye dokununca özeti açılır</li></ol>
+      <button class="demo-btn" id="btnDemo">Örnek programla dene</button>
+      <p class="demo-note">Uydurma bir dizinin haftalık programı yüklenir, istediğin zaman silebilirsin.</p></div>`;
   }
   if(S.view==="mine" && dates.some(d=>S.days[iso(d)])) html += weekSummary(dates,today);
   dates.forEach(d=>{
@@ -1707,6 +1711,12 @@ $("#btnParse").onclick=async()=>{
     // merge: later entries for same date win
     const byDate={}; [...localDays,...aiDayObjs].forEach(o=>byDate[o.date]=o);
     const all=Object.values(byDate);
+    if(S.demo && all.length){
+      // sample program: move it onto the current week so it looks alive
+      const first=all.map(o=>o.date).sort()[0];
+      const shift=Math.round((mondayOf(new Date()).getTime()-mondayOf(parseIso(first)).getTime())/864e5);
+      all.forEach(o=>{ const d=parseIso(o.date); d.setDate(d.getDate()+shift); o.date=iso(d); o.sourceName="Örnek program"; });
+    }
     if(!all.length && newScripts.length && !unreadPdfs.length && !imgs.length){
       S.busy=false; S.files=[]; renderFiles(); closeSheet(); render();
       toast(newScripts.map(x=>`${x.episode}. bölüm senaryosu eklendi · ${x.scenes.length} sahne`).join(" · "),3600);
@@ -1764,7 +1774,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.10-1";
+const APP_VERSION="2026.11.11-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1801,6 +1811,17 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
   document.getElementById("btnSettings").addEventListener("click",()=>{ apply(); openSheet(document.getElementById("setSheet")); });
   apply();
 })();
+
+/* ---- sample program (for first-time users and App Review) ---- */
+document.addEventListener("click",async e=>{
+  if(!e.target.closest || !e.target.closest("#btnDemo") || S.busy) return;
+  try{
+    const r=await fetch("lib/ornek-program.pdf"); if(!r.ok) throw new Error(r.status);
+    const f=new File([await r.blob()],"Örnek program.pdf",{type:"application/pdf"});
+    S.files=[f]; S.demo=true; $("#charIn").value="Kaptan";
+    try{ await $("#btnParse").onclick(); } finally { S.demo=false; }
+  }catch(err){ toast("Örnek program açılamadı"); }
+});
 
 /* ---- fixed header height -> body offset ---- */
 (function(){

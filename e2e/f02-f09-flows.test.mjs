@@ -233,3 +233,15 @@ test("F09-E3 klavye: + düğmesine ulaşılır, Esc pencereyi kapatır", async (
   await p.waitForTimeout(300);
   assert.equal(await p.locator("#upSheet").evaluate((e) => e.classList.contains("on")), false);
 });
+
+test("F15-H1 örnek programla dene: bu haftaya 6 gün yüklenir, silinebilir", async () => {
+  const p = app.page;
+  await p.getByRole("button", { name: "Örnek programla dene" }).click();
+  await p.waitForFunction(() => document.querySelectorAll("#main .scene").length > 0, null, { timeout: 15000 });
+  const s = await stored(p);
+  const keys = Object.keys(s.days).sort();
+  assert.deepEqual(keys, ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07"], "bu haftanın Pzt–Cmt günleri");
+  assert.equal(keys.reduce((a, k) => a + s.days[k].scenes.length, 0), 11);
+  assert.ok(keys.every((k) => s.days[k].sourceName === "Örnek program"));
+  assert.equal(await p.getByRole("button", { name: "Örnek programla dene" }).count(), 0, "veri gelince düğme kaybolur");
+});
