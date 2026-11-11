@@ -245,3 +245,25 @@ test("F15-H1 örnek programla dene: bu haftaya 6 gün yüklenir, silinebilir", a
   assert.ok(keys.every((k) => s.days[k].sourceName === "Örnek program"));
   assert.equal(await p.getByRole("button", { name: "Örnek programla dene" }).count(), 0, "veri gelince düğme kaybolur");
 });
+
+test("F16-H1 arayüz: görünür sekme, cümle düzeninde özet, ilerleme, ipucu kapanır", async () => {
+  const p = app.page;
+  await p.getByRole("button", { name: "Örnek programla dene" }).click();
+  await p.waitForFunction(() => document.querySelectorAll("#main .scene").length > 0, null, { timeout: 15000 });
+  // tab is visible in the header without opening the week panel
+  assert.equal(await p.locator("header .seg").getByRole("button", { name: "Tüm program" }).isVisible(), true);
+  // synopsis in sentence case, character names capitalised
+  assert.match(await p.locator("#main .scene .sum").first().innerText(), /^Kaptan sabah avdan döner/);
+  // progress tag
+  assert.match(await p.locator("#day-2026-11-02 .dayhead").innerText(), /✓ 0\/3/);
+  // tip shows once and stays closed
+  await p.getByRole("button", { name: "İpucunu kapat" }).click();
+  await p.waitForTimeout(200);
+  assert.equal(await p.locator(".tip").count(), 0);
+  await p.reload(); await p.waitForTimeout(800);
+  assert.equal(await p.locator(".tip").count(), 0);
+  // switching to all program from the header
+  await p.locator("header .seg").getByRole("button", { name: "Tüm program" }).click();
+  await p.waitForTimeout(300);
+  assert.ok(await p.locator("#main .scene.other").count() > 0);
+});

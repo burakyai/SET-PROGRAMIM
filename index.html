@@ -332,6 +332,25 @@ main{overflow-x:hidden}
 .scene.sl.go::after,.scene.sr.go::before{opacity:1}
 .scene.sl.go{border-color:var(--green)}
 .scene.done{text-decoration:none}
+
+/* ---- UI v2: çekildi etiketi, görünür sekme, ilerleme, ipucu ---- */
+.scene.done{opacity:1}
+.scene.done>.no,.scene.done>.body,.scene.done>.chev{opacity:.45}
+.scene.done .no b{text-decoration:none}
+.scene.done::after{content:"✓ ÇEKİLDİ";content:"✓ ÇEKİLDİ" / "";opacity:1;left:auto;right:44px;top:12px;transform:none;font-size:10px;letter-spacing:.6px;color:var(--green);background:var(--bg);padding:2px 6px;border-radius:6px;border:1px solid var(--green)}
+.scene.done.sl::after,.scene.done.sr::after{opacity:0}
+header .seg.top{margin:8px 0 2px;padding:3px}
+header .seg.top button{height:30px;font-size:12.5px}
+.prog{display:inline-flex;align-items:center;gap:6px}
+.prog i{display:inline-block;width:44px;height:5px;border-radius:3px;background:var(--line);overflow:hidden;position:relative}
+.prog i b{position:absolute;left:0;top:0;bottom:0;background:var(--green);border-radius:3px}
+.day.noprog .dayhead{border-bottom:0;padding-bottom:0}
+.day.noprog .dayhead .t{font-size:13.5px;color:var(--dim)}
+.day.noprog .empty{display:none}
+.day.noprog{margin-top:10px}
+.tip{margin-top:12px;display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:14px;padding:11px 12px;font-size:12.5px;line-height:1.45;color:var(--ink)}
+.tip b{color:var(--accent-t)}
+.tip button{margin-left:auto;color:var(--mute);font-size:18px;line-height:1;padding:0 2px}
 </style>
 </head>
 <body>
@@ -345,6 +364,7 @@ main{overflow-x:hidden}
     <button class="charchip" id="charChip">Karakter: —</button>
   </div>
   <div class="strip" id="strip"></div>
+  <div class="seg top" id="seg"><button data-v="mine">Benim sahnelerim</button><button data-v="all">Tüm program</button></div>
   <div class="more" id="more">
     <div class="morein">
       <div class="weekbar">
@@ -356,7 +376,6 @@ main{overflow-x:hidden}
           <button class="arr" id="btnNext" aria-label="Sonraki hafta">›</button>
         </div>
       </div>
-      <div class="seg" id="seg"><button data-v="mine">Benim sahnelerim</button><button data-v="all">Tüm program</button></div>
       <button class="manage" id="btnManage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Yüklenen programlar</button>
     </div>
   </div>
@@ -804,6 +823,12 @@ const S = {
 };
 
 /* ---------- date helpers ---------- */
+function tcase(t,chars){ if(!t||t!==t.toLocaleUpperCase("tr")) return t;
+  let l=t.toLocaleLowerCase("tr").replace(/(^|[.!?;]\s+)(\p{L})/gu,(m,a,b)=>a+b.toLocaleUpperCase("tr"));
+  (chars||[]).forEach(c=>{ const lc=String(c).toLocaleLowerCase("tr").trim(); if(lc.length<2) return;
+    const cap=lc.replace(/(^|\s)(\p{L})/gu,(m,a,b)=>a+b.toLocaleUpperCase("tr"));
+    l=l.split(lc).join(cap); });
+  return l; }
 function iso(d){ const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
 function parseIso(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
 function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
@@ -1050,12 +1075,12 @@ function renderAll(k,day){
       const fx=cardFx(k,s);
       h+=`<button class="scene mine${done?" done":""}${fx.cls}" data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
         <div class="body">${fx.pill}<div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
-        ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}${fx.more||""}</div><span class="chev" title="Detay">›</span></button>`;
+        ${s.synopsis?`<div class="sum">${esc(tcase(s.synopsis,s.characters))}</div>`:""}${fx.more||""}</div><span class="chev" title="Detay">›</span></button>`;
     } else {
       const fx=cardFx(k,s);
       h+=`<button class="scene other${done?" done":""}${fx.cls}" data-scene="${k}|a${i}">${noBox(s)}
         <div class="body">${fx.pill}<div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
-        ${fx.more!==undefined ? (s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:"")+fx.more : (s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:"")}</div><span class="chev" title="Detay">›</span></button>`;
+        ${fx.more!==undefined ? (s.synopsis?`<div class="sum">${esc(tcase(s.synopsis,s.characters))}</div>`:"")+fx.more : (s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:"")}</div><span class="chev" title="Detay">›</span></button>`;
     }
   });
   return h;
@@ -1123,17 +1148,20 @@ function render(){
       <p class="demo-note">Uydurma bir dizinin haftalık programı yüklenir, istediğin zaman silebilirsin.</p></div>`;
   }
   if(S.view==="mine" && dates.some(d=>S.days[iso(d)])) html += weekSummary(dates,today);
+  if(anyData && !localStorage.getItem("setprog.tip1")) html += `<div class="tip"><div>👆 <b>Dokun:</b> sahne detayı · 👈 <b>Sola kaydır:</b> çekildi · 👉 <b>Sağa:</b> geri al · ✌️ <b>Çift dokun:</b> şimdi çekiliyor</div><button id="tipX" aria-label="İpucunu kapat">×</button></div>`;
   dates.forEach(d=>{
     const k=iso(d); const day=S.days[k];
     const label=TR_DAYS[d.getDay()];
     const sub=d.getDate()+" "+TR_MON[d.getMonth()];
-    html += `<section class="day${S.now&&S.now.date===k&&nowScenes().length?" hasnow":""}" id="day-${k}"><div class="dayhead"><div><div class="t">${label}<small>${sub}${k===today?" · Bugün":""}</small></div>`;
+    html += `<section class="day${S.now&&S.now.date===k&&nowScenes().length?" hasnow":""}${!day&&anyData?" noprog":""}" id="day-${k}"><div class="dayhead"><div><div class="t">${label}<small>${sub}${k===today?" · Bugün":""}${!day&&anyData?" · program yok":""}</small></div>`;
     if(day){
       const tags=[];
       if(day.shootDay) tags.push(`<span class="tag">${esc(day.shootDay)}</span>`);
       if(day.callTime) tags.push(`<span class="tag y">⏰ ${esc(day.callTime)}${day.setTime&&day.setTime!==day.callTime?" <span style=\"color:var(--mute)\">(set "+esc(day.setTime)+")</span>":""}</span>`);
       if(day.location) tags.push(`<span class="tag">📍 ${esc(day.location)}</span>`);
       tags.push(`<span class="tag y">🎬 ${day.scenes?.length||0} sahnen${day.totalScenes?` <span style="color:var(--mute)">/ ${day.totalScenes}</span>`:""}</span>`);
+      { const n=day.scenes?.length||0, dn=(day.scenes||[]).filter(x=>x.done).length;
+        if(n) tags.push(`<span class="tag prog" style="color:var(--green)">✓ ${dn}/${n}<i><b style="width:${Math.round(dn/n*100)}%"></b></i></span>`); }
       if(tags.length) html+=`<div class="meta">${tags.join("")}</div>`;
     }
     html += `</div>${day?`<button class="dots" data-daymenu="${k}" aria-label="Gün seçenekleri">⋯</button>`:""}</div>`;
@@ -1154,7 +1182,7 @@ function render(){
           ${(()=>{const n=shortNo(s.sceneNo);const c=n.txt.length>7?"s":n.txt.length>4?"m":"";return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`;})()}
           <div class="body">${fx.pill}<div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
           ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
-          ${s.synopsis?`<div class="sum">${esc(s.synopsis)}</div>`:""}${fx.more||""}</div>
+          ${s.synopsis?`<div class="sum">${esc(tcase(s.synopsis,s.characters))}</div>`:""}${fx.more||""}</div>
           <span class="chev" title="Detay">›</span></button>`;
       });
     }
@@ -1267,7 +1295,7 @@ function showScene(k,i){
     <div style="margin-left:auto;text-align:right"><div class="sd-k">${TR_DAYS[d.getDay()]}</div><div style="font-weight:700;margin-top:3px">${d.getDate()} ${TR_MON[d.getMonth()]}</div></div></div>
     <div class="sd-set">${esc(s.set||"")}</div>
     ${tags.length?`<div class="sd-tags">${tags.join("")}</div>`:""}
-    <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(s.synopsis):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
+    <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(tcase(s.synopsis,s.characters)):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
     ${scriptSection(s)}
@@ -1774,7 +1802,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.11-1";
+const APP_VERSION="2026.11.11-2";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1812,6 +1840,7 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
   apply();
 })();
 
+document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest("#tipX")){ try{localStorage.setItem("setprog.tip1","1")}catch(_){} render(); } });
 /* ---- sample program (for first-time users and App Review) ---- */
 document.addEventListener("click",async e=>{
   if(!e.target.closest || !e.target.closest("#btnDemo") || S.busy) return;

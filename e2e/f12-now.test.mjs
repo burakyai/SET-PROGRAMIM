@@ -39,7 +39,7 @@ test("F12-H1 çift dokunuş yakar: şerit, vurgu, sıradaki, bilgi kartta; detay
   assert.match(await bar.innerText(), /Sıradaki: 10-11A-12-13A-14-15A-16/);
   const now = p.locator("#day-2026-11-09 .scene.now");
   assert.equal(await now.count(), 1);
-  assert.match(await now.innerText(), /RIZA KAPTANDAN BAHSEDER/);
+  assert.match(await now.innerText(), /Rıza kaptandan bahseder/);
   assert.match(await now.innerText(), /RIZA · SELİM/);
   assert.equal(await p.locator("#day-2026-11-09 .scene.nextup").count(), 1);
 });
