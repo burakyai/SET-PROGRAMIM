@@ -1,4 +1,4 @@
-Screen recording (iPhone, latest iOS, starts at app launch): {{VIDEO_LINK}}
+Screen recording: see the attached video file (recorded on a physical iPhone with the latest iOS, starting at app launch).
 
 1. SCREEN RECORDING
 The recording above was captured on a physical iPhone running the latest iOS, using the submitted build. It starts by launching the app and shows the typical flow: loading the built-in sample schedule, the weekly summary, opening a scene's details, marking scenes as shot by swiping, marking the scene being shot now with a double tap, switching to the full schedule view, and uploading a schedule PDF with the + button.
@@ -16,9 +16,9 @@ No login is needed and no sample file needs to be downloaded.
 - Tap a scene to open its details (synopsis, characters, notes).
 - Swipe a scene left to mark it as shot; swipe right to unmark it.
 - Double-tap a scene to mark it as "now shooting" (ŞİMDİ); the next scene is shown as SIRADAKİ.
-- Tap the date title at the top, then "Tüm program" to see every scene of the schedule, with the actor's own scenes highlighted.
+- Tap "Tüm program" at the top to see every scene of the schedule, with the actor's own scenes highlighted.
 - To load a real schedule: tap the yellow + button, type a character name, choose a PDF from Files and tap "Programı Oku" (Read schedule).
-- Uploaded schedules can be deleted from "Yüklenen programlar" (tap the date title at the top).
+- Uploaded schedules can be deleted from "Yüklenen programlar" (tap the date title at the top to open the week panel).
 
 4. EXTERNAL SERVICES
 None for core functionality. There is no backend, analytics, advertising, authentication, payment processor or AI service. PDFs are parsed on the device with the bundled open-source pdf.js library (Apache-2.0). Only if the bundled reader fails to open a file, the app downloads the same open-source library from cdnjs.cloudflare.com; no user data or files are sent. All data stays on the device.
