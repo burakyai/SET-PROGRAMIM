@@ -16,7 +16,13 @@ if 'ITSAppUsesNonExemptEncryption' not in s:
     # status bar follows the system (the app's "Otomatik" theme also follows the system)
     s=re.sub(r'<key>UIViewControllerBasedStatusBarAppearance</key>\s*<true/>','<key>UIViewControllerBasedStatusBarAppearance</key>\n\t<false/>\n\t<key>UIStatusBarStyle</key>\n\t<string>UIStatusBarStyleDefault</string>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n\t<key>UIRequiresFullScreen</key>\n\t<true/>',s)
 s=s.replace('<string>UIStatusBarStyleLightContent</string>','<string>UIStatusBarStyleDefault</string>')
+# usage descriptions: iOS terminates an app that opens the camera/photos without them
+for k,v in [("NSCameraUsageDescription","Set programının fotoğrafını çekmek için kamera kullanılır."),
+            ("NSPhotoLibraryUsageDescription","Set programının fotoğrafını seçmek için fotoğraflarına erişilir.")]:
+    if k not in s:
+        s=s.replace('<key>CFBundleDevelopmentRegion</key>',f'<key>{k}</key>\n\t<string>{v}</string>\n\t<key>CFBundleDevelopmentRegion</key>',1)
 assert 'ITSAppUsesNonExemptEncryption' in s, 'Info.plist güncellenemedi'
+assert 'NSCameraUsageDescription' in s
 open(p,'w').write(s)
 p=f'{A}/Base.lproj/LaunchScreen.storyboard';s=open(p).read()
 s=re.sub(r'<color key="backgroundColor" [^>]*/>','<color key="backgroundColor" red="0.055" green="0.051" blue="0.047" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>',s,count=1).replace('contentMode="scaleAspectFill"','contentMode="scaleAspectFit"')

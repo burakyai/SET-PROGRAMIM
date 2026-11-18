@@ -267,3 +267,12 @@ test("F16-H1 arayüz: görünür sekme, cümle düzeninde özet, ilerleme, ipucu
   await p.waitForTimeout(300);
   assert.ok(await p.locator("#main .scene.other").count() > 0);
 });
+
+test("BUG-014 Claude dışında dosya seçici yalnızca PDF ister (iPhone'da 'Fotoğraf Çek' çıkmasın)", async () => {
+  const p = app.page;
+  await p.getByRole("button", { name: "Program yükle" }).click();
+  await p.waitForTimeout(300);
+  assert.equal(await p.locator("#fileIn").getAttribute("accept"), "application/pdf,.pdf");
+  assert.match(await p.locator("#dropT").innerText(), /PDF seç/);
+  assert.doesNotMatch(await p.locator("#upSheet").innerText(), /fotoğraf/i);
+});

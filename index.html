@@ -392,13 +392,13 @@ header .seg.top button{height:30px;font-size:12.5px}
 <div class="sheet" id="upSheet">
   <div class="grab"></div>
   <h2>Set programını yükle</h2>
-  <p class="hint">Set programı ya da bölüm senaryosu PDF'ini seç; telefonun içinde anında okunur, hiçbir yere gönderilmez. Senaryo yüklersen sahneye dokununca metni de açılır. Fotoğraf/ekran görüntüsü yüklersen yapay zekâ ile okunur.</p>
+  <p class="hint">Set programı ya da bölüm senaryosu PDF'ini seç; telefonun içinde anında okunur, hiçbir yere gönderilmez. Senaryo yüklersen sahneye dokununca metni de açılır.<span id="photoNote"> Fotoğraf/ekran görüntüsü yüklersen yapay zekâ ile okunur.</span></p>
   <label class="f" for="charIn">Karakter adın</label>
   <input type="text" id="charIn" placeholder="ör. Oruç" autocomplete="off" autocapitalize="words">
   <label class="f">Program dosyası</label>
   <label class="drop" for="fileIn">
-    <b>＋ PDF veya görsel seç</b>
-    <span>Birden fazla sayfa/fotoğraf seçebilirsin</span>
+    <b id="dropT">＋ PDF veya görsel seç</b>
+    <span id="dropS">Birden fazla sayfa/fotoğraf seçebilirsin</span>
   </label>
   <input type="file" id="fileIn" accept="application/pdf,image/*" multiple hidden>
   <div class="files" id="fileList"></div>
@@ -829,6 +829,7 @@ function tcase(t,chars){ if(!t||t!==t.toLocaleUpperCase("tr")) return t;
     const cap=lc.replace(/(^|\s)(\p{L})/gu,(m,a,b)=>a+b.toLocaleUpperCase("tr"));
     l=l.split(lc).join(cap); });
   return l; }
+function canPhoto(){ return !!(window.claude && window.claude.use); }
 function iso(d){ const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
 function parseIso(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
 function mondayOf(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
@@ -1142,7 +1143,7 @@ function render(){
     html += `<div class="welcome"><h3>Hadi başlayalım 🎬</h3><ol>
       <li>Aşağıdan <b>Program Yükle</b>'ye bas</li>
       <li>Karakter adını yaz</li>
-      <li>Set programının PDF'ini ya da fotoğrafını seç</li>
+      <li>Set programının PDF'ini${canPhoto()?" ya da fotoğrafını":""} seç</li>
       <li>Sahnelerin gün gün buraya dizilir, sahneye dokununca özeti açılır</li></ol>
       <button class="demo-btn" id="btnDemo">Örnek programla dene</button>
       <p class="demo-note">Uydurma bir dizinin haftalık programı yüklenir, istediğin zaman silebilirsin.</p></div>`;
@@ -1416,6 +1417,7 @@ $("#btnCal").onclick=()=>addToCalendar(weekDates().map(iso));
 
 /* ---------- upload ---------- */
 $("#fab").onclick=()=>{
+  pickerMode();
   $("#charIn").value=S.character;
   if(!$("#fallbackDate").value) $("#fallbackDate").value=S.selected||iso(new Date());
   setStatus(false); renderFiles();
@@ -1802,7 +1804,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.11-2";
+const APP_VERSION="2026.11.18-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1841,6 +1843,15 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 })();
 
 document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest("#tipX")){ try{localStorage.setItem("setprog.tip1","1")}catch(_){} render(); } });
+/* ---- photos need the AI reader (only inside Claude); elsewhere (iPhone app, web) accept PDFs only.
+   Offering images on iOS also adds "Take Photo" to the picker, which needs a camera permission. ---- */
+function pickerMode(){ const ok=canPhoto();
+  const fi=document.getElementById("fileIn"); if(fi) fi.accept= ok ? "application/pdf,image/*" : "application/pdf,.pdf";
+  const t=document.getElementById("dropT"), s=document.getElementById("dropS");
+  if(t) t.textContent= ok ? "＋ PDF veya görsel seç" : "＋ PDF seç";
+  if(s) s.textContent= ok ? "Birden fazla sayfa/fotoğraf seçebilirsin" : "Birden fazla PDF seçebilirsin";
+  const n=document.getElementById("photoNote"); if(n) n.hidden=!ok; }
+pickerMode();
 /* ---- sample program (for first-time users and App Review) ---- */
 document.addEventListener("click",async e=>{
   if(!e.target.closest || !e.target.closest("#btnDemo") || S.busy) return;

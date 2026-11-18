@@ -132,3 +132,11 @@ Durum: düzeltildi, cihazda doğrulanacak
 - **Kök neden:** Üst bar sabit (fixed); sayfa boşluğu bar yüksekliğinden ölçülüyor. iOS çentik payını ilk çizimden sonra veriyor ve bu pay barın padding'ine ekleniyor. ResizeObserver varsayılan olarak content-box izlediği için padding büyümesini görmedi ve boşluk 59 px eksik kaldı.
 - **Düzeltme:** Gözlemci border-box izliyor; çentik payı düzeltmesi ve font yüklenmesi sonrası yükseklik yeniden ölçülüyor.
 - **Test:** e2e/f12-now.test.mjs › BUG-013 (eski kodda kalıyor, yenide geçiyor).
+
+## BUG-014 — iPhone uygulamasında "Fotoğraf Çek" uygulamayı kapatıyor (App Review 2.1(a))
+- **Önem:** Kritik · **Durum:** Düzeltildi (2026.11.18-1)
+- **Adımlar:** iPhone uygulaması → + → dosya seç → "Fotoğraf Çek".
+- **Gerçekleşen:** Uygulama çöküyor (Apple incelemesi, iPhone 17 Pro Max, iOS 27.2.1, derleme 117).
+- **Kök neden:** Dosya seçici görsel de kabul ettiği için iOS menüye kamerayı ekliyor; Info.plist'te kamera izni açıklaması (NSCameraUsageDescription) yoktu, iOS bu durumda uygulamayı sonlandırır. Ayrıca görseller yalnızca Claude içindeki yapay zekâ ile okunabiliyordu; uygulamada zaten çalışmıyordu.
+- **Düzeltme:** Claude dışında seçici yalnızca PDF kabul ediyor (kamera seçeneği çıkmıyor), metinler buna göre; Info.plist'e kamera ve fotoğraf izin açıklamaları eklendi.
+- **Test:** e2e/f02-f09-flows.test.mjs › BUG-014.
