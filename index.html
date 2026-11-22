@@ -363,6 +363,33 @@ header .seg.top button{height:30px;font-size:12.5px}
 .nowbar .nb-b{padding:0 9px}
 .nowbar #nbRead,.nowbar #nbDone{width:34px;padding:0;font-size:14px}
 .nowbar .nb-k{letter-spacing:.4px}
+
+/* ---- notes, partners, stats, revise, rehearsal ---- */
+.chars button{font-size:12.5px;padding:5px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.chars button:active{transform:scale(.96)}
+textarea.note{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink);font:inherit;font-size:15px;line-height:1.4;resize:vertical;min-height:56px}
+.scr-note{margin:8px 0 4px;padding:8px 10px;border-radius:10px;border:1px dashed var(--line2);font-size:13.5px;color:var(--ink);white-space:pre-wrap}
+.btn.plist{text-align:left;justify-content:flex-start;font-weight:500;font-size:13.5px;height:auto;min-height:46px;padding:10px 12px;line-height:1.35}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 4px}
+.stats div{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 4px;text-align:center}
+.stats b{display:block;font-family:"JetBrains Mono",monospace;font-size:20px;color:var(--accent-t)}
+.stats span{font-size:11px;color:var(--mute)}
+.st-h{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--mute);margin:18px 0 6px}
+.st-r{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
+.st-r span:not(:first-child){text-align:right;color:var(--mute)}
+.rev{display:flex;gap:8px;align-items:flex-start;margin:6px 0 2px;padding:8px 10px;border-radius:12px;font-size:12.5px;line-height:1.45;background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line))}
+.rev b{color:var(--accent-t)}
+.rev button{margin-left:auto;color:var(--mute);font-size:18px;line-height:1;padding:0 2px}
+.pill.new{background:var(--green);color:#04130a}
+.scr-tools{display:flex;gap:8px;margin:2px 0 10px}
+.scr-tools button{flex:1;height:38px;border-radius:10px;border:1px solid var(--line2);font-size:13px;font-weight:700;color:var(--ink);background:var(--panel2)}
+.memo .scr-dlg.me:not(.shown){color:transparent;text-shadow:0 0 14px var(--ink);cursor:pointer}
+.reh .scr-dlg.cur{outline:2px solid var(--accent);outline-offset:2px}
+.reh .scr-cue.cur{color:var(--accent)}
+.rehbar{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;margin:16px -4px 0;padding:10px 12px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;z-index:2}
+.rehbar span{flex:1;min-width:0}
+.rehbar button{flex:none;height:36px;border-radius:10px;padding:0 12px;font-size:13px;font-weight:800;background:rgba(0,0,0,.14);color:inherit}
+select.sel{margin-top:8px;width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:inherit;padding:0 10px}
 </style>
 </head>
 <body>
@@ -388,6 +415,7 @@ header .seg.top button{height:30px;font-size:12.5px}
           <button class="arr" id="btnNext" aria-label="Sonraki hafta">›</button>
         </div>
       </div>
+      <button class="manage" id="btnStats">📊 Sezon özeti</button>
       <button class="manage" id="btnManage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Yüklenen programlar</button>
     </div>
   </div>
@@ -462,6 +490,11 @@ header .seg.top button{height:30px;font-size:12.5px}
     <button data-t="dark"><span class="pv"><i class="d"><b></b><b></b><b></b></i></span>Koyu</button>
   </div>
   <p class="setrow" id="themeNote"></p>
+  <div id="remBox" hidden>
+    <label class="f">Akşam hatırlatması</label>
+    <label class="check"><input type="checkbox" id="remOn"> Ertesi gün sahnem varsa bildirim gönder</label>
+    <select id="remTime" class="sel" aria-label="Hatırlatma saati"></select>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -878,6 +911,7 @@ const Store = {
         snap.docs.forEach(d=>{
           const v=d.data(); if(!v) return;
           if(d.id==="settings"){ if(typeof v.character==="string") S.character=v.character; }
+          else if(d.id==="notes"){ if(v.map && typeof v.map==="object") Notes.map=v.map; }
           else if(d.id.startsWith("d-")) days[d.id.slice(2)] = v;
         });
         S.days=days; render();
@@ -940,6 +974,7 @@ function sceneLine(s){
   if(s.intExt) ln.push(esc(s.intExt));
   if(s.dayNight) ln.push(`<span class="dn-ic">${dnIcon(s.dayNight)}</span> ${esc(s.dayNight)}`);
   if(s.pages) ln.push(esc(s.pages)+" sf");
+  if(Notes.get(s)) ln.push("📝 not");
   return ln;
 }
 function noBox(s){ const n=shortNo(s.sceneNo); const c=n.txt.length>7?"s":n.txt.length>4?"m":""; return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`; }
@@ -1041,6 +1076,15 @@ const Scripts={
     await new Promise(res=>{ const tx=db.transaction("scripts","readwrite"); tx.objectStore("scripts").delete(ep); tx.oncomplete=res; tx.onerror=res; }); },
   list(){ const n=x=>/^\d+$/.test(x.episode)?+x.episode:1e4; return Object.values(this.map).sort((a,b)=>n(b)-n(a)||String(a.episode).localeCompare(String(b.episode),"tr")); }
 };
+function noteKey(s){ return epRaw(s)+"|"+s.sceneNo; }
+const Notes={ map:(()=>{ try{ return JSON.parse(localStorage.getItem("setprog.notes")||"{}")||{}; }catch(e){ return {}; } })(),
+  get(s){ return this.map[noteKey(s)]||""; },
+  set(s,t){ const k=noteKey(s); t=String(t||"").trim(); if((this.map[k]||"")===t) return false;
+    if(t) this.map[k]=t; else delete this.map[k];
+    try{ localStorage.setItem("setprog.notes",JSON.stringify(this.map)); }catch(e){}
+    try{ if(Store.mode==="db") Promise.resolve(Store.db.collection("data/users/"+Store.uid).doc("notes").set({map:this.map})).catch(()=>{}); }catch(e){}
+    return true; } };
+function pagesNum(p){ const m=String(p||"").replace(",",".").match(/\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
 function epRaw(s){ return String(s.blm || (String(s.extra||"").match(/Bölüm:\s*([^\n·]+)/)||[])[1] || "").trim(); }
 function episodeOf(s){ return epRaw(s); }
 function upTR(t){ return String(t||"").replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().replace(/\s+/g," ").trim(); }
@@ -1113,6 +1157,7 @@ function pickScript(s,after){
     closeSheet(); after&&after(); });
   openSheet($("#daySheet"));
 }
+function noteHtml(s){ const n=Notes.get(s); return n?`<p class="scr-note">📝 ${esc(n)}</p>`:""; }
 function scriptBlocksHtml(found){
   let html="";
   found.forEach(sc=>{
@@ -1127,8 +1172,17 @@ function scriptBlocksHtml(found){
   return html;
 }
 function openScriptSheet(title,body){
-  $("#scriptBody").innerHTML=`<div class="scr-top"><div class="sd-k">${title}</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`+body;
+  try{ Reh.stop(); }catch(_){}
+  const sb=$("#scriptBody"); sb.classList.remove("memo","reh");
+  sb.innerHTML=`<div class="scr-top"><div class="sd-k">${title}</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`+body;
   $("#scrClose").onclick=closeSheet;
+  if(sb.querySelector(".scr-dlg.me")){
+    sb.querySelector(".scr-top").insertAdjacentHTML("afterend",`<div class="scr-tools"><button id="scrMemo" aria-pressed="false">🙈 Ezber modu</button><button id="scrPlay">▶ Prova</button></div>`);
+    $("#scrMemo").onclick=()=>{ const on=!sb.classList.contains("memo"); sb.classList.toggle("memo",on); sb.querySelectorAll(".scr-dlg.shown").forEach(e=>e.classList.remove("shown"));
+      $("#scrMemo").setAttribute("aria-pressed",on); $("#scrMemo").textContent=on?"👁 Replikleri göster":"🙈 Ezber modu"; };
+    $("#scrPlay").onclick=()=>Reh.start();
+  }
+  sb.onclick=e=>{ const d=e.target.closest(".scr-dlg.me"); if(d && sb.classList.contains("memo") && !Reh.on) d.classList.toggle("shown"); };
   $("#scriptBody").querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{ const s=window.__scrScene; if(!s) return;
     S.scriptPick=S.scriptPick||{}; S.scriptPick[s.sceneNo+"|"+epRaw(s)]=b.dataset.alt;
     try{ localStorage.setItem("setprog.scriptPick",JSON.stringify(S.scriptPick)); }catch(_){}
@@ -1140,6 +1194,7 @@ function showScriptList(list,title){
   let html=""; let any=false;
   list.forEach(s=>{ const r=scriptFor(s);
     html+=`<div class="scr-sep">Sahne ${esc(s.sceneNo)}${s.set?" · "+esc(s.set):""}${r.found.length?` <small>${esc(epName(r.ep))}</small>`:""}</div>`;
+    html+=noteHtml(s);
     if(r.found.length){ any=true; html+=scriptBlocksHtml(r.found); }
     else html+=`<p class="scr-miss">${r.cands.length?esc(r.cands.map(epName).join(" / "))+" senaryosu yüklü değil ya da bu sahne bulunamadı.":"Bu sahnenin senaryosu bulunamadı."}</p>`;
   });
@@ -1151,7 +1206,7 @@ function showScript(s){
   const {ep,found,alts}=scriptFor(s); if(!found.length) return;
   window.__scrScene=s;
   const chips=alts.length>1?`<div class="scr-alts">${alts.map(a=>`<button class="${a.ep===ep?"on":""}" data-alt="${esc(a.ep)}">${esc(epName(a.ep))}</button>`).join("")}</div>`:"";
-  openScriptSheet(`${esc(epName(ep))} · senaryo`, chips+scriptBlocksHtml(found));
+  openScriptSheet(`${esc(epName(ep))} · senaryo`, chips+noteHtml(s)+scriptBlocksHtml(found));
 }
 
 function sceneByRef(k,i){ const day=S.days[k]; if(!day) return null;
@@ -1223,6 +1278,12 @@ function weekSummary(dates,today){
       <div class="tot"><span>Hafta toplamı</span><span><b>${total}</b> sahne${pages?` · ${fmtNum(pages)} sayfa`:""}</span></div>
     </div></div></div>`;
 }
+function revBanner(k,r){ const parts=[];
+  if(r.added?.length) parts.push("＋ Sahne "+r.added.map(n=>esc(shortNo(n).txt)).join(", "));
+  if(r.removed?.length) parts.push("− Sahne "+r.removed.map(n=>esc(shortNo(n).txt)+(r.removedTo&&r.removedTo[n]?" → "+TR_SHORT[parseIso(r.removedTo[n]).getDay()]:"")).join(", "));
+  if(r.moved) parts.push("sıra değişti");
+  if(r.call) parts.push(`set ${esc(r.call.from)} → ${esc(r.call.to)}`);
+  return `<div class="rev"><div><b>Revize:</b> ${parts.join(" · ")}</div><button data-revx="${k}" aria-label="Revize notunu kapat">×</button></div>`; }
 function render(){
   const dates=weekDates(); const today=iso(new Date());
   const a=dates[0], b=dates[6];
@@ -1258,7 +1319,7 @@ function render(){
   if(anyData && !localStorage.getItem("setprog.tip1")) html += `<div class="tip"><div>👆 <b>Dokun:</b> sahne detayı · 👈 <b>Sola kaydır:</b> çekildi · 👉 <b>Sağa:</b> geri al · ✌️ <b>Çift dokun:</b> şimdi çekiliyor</div><button id="tipX" aria-label="İpucunu kapat">×</button></div>`;
   dates.forEach(d=>{
     const k=iso(d); const day=S.days[k];
-    const label=TR_DAYS[d.getDay()];
+    const label=TR_DAYS[d.getDay()]; let revHtml="";
     const sub=d.getDate()+" "+TR_MON[d.getMonth()];
     html += `<section class="day${S.now&&S.now.date===k&&nowScenes().length?" hasnow":""}${!day&&anyData?" noprog":""}" id="day-${k}"><div class="dayhead"><div><div class="t">${label}<small>${sub}${k===today?" · Bugün":""}${!day&&anyData?" · program yok":""}</small></div>`;
     if(day){
@@ -1270,8 +1331,9 @@ function render(){
       { const n=day.scenes?.length||0, dn=(day.scenes||[]).filter(x=>x.done).length;
         if(n) tags.push(`<span class="tag prog" style="color:var(--green)">✓ ${dn}/${n}<i><b style="width:${Math.round(dn/n*100)}%"></b></i></span>`); }
       if(tags.length) html+=`<div class="meta">${tags.join("")}</div>`;
+      if(day.rev) revHtml=revBanner(k,day.rev);
     }
-    html += `</div>${day?`<button class="dots" data-daymenu="${k}" aria-label="Gün seçenekleri">⋯</button>`:""}</div>`;
+    html += `</div>${day?`<button class="dots" data-daymenu="${k}" aria-label="Gün seçenekleri">⋯</button>`:""}</div>${revHtml}`;
     if(!day){ html += `<div class="empty">Program yüklenmedi</div>`; }
     else if(S.view==="all" && day.all?.length){ html += renderAll(k,day); }
     else if(!day.scenes?.length){ html += `<div class="empty">Bu gün senin sahnen yok 🎉</div>`; }
@@ -1284,10 +1346,11 @@ function render(){
         if(s.time) ln.push("⏱ "+esc(s.time));
         if(s.team) ln.push(esc(s.team));
         if(s.uncertain) ln.push("<span style=\"color:var(--accent-t)\">? teyit et</span>");
+        if(Notes.get(s)) ln.push("📝 not");
         const fx=cardFx(k,s);
         html += `<button class="scene${s.done?" done":""}${fx.cls}" data-scene="${k}|${i}">
           ${(()=>{const n=shortNo(s.sceneNo);const c=n.txt.length>7?"s":n.txt.length>4?"m":"";return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`;})()}
-          <div class="body">${fx.pill}<div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
+          <div class="body">${day.rev?.added?.includes(s.sceneNo)?`<span class="pill new">YENİ</span> `:""}${fx.pill}<div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
           ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
           ${s.synopsis?`<div class="sum">${esc(tcase(s.synopsis,s.characters))}</div>`:""}${fx.more||""}</div>
           <span class="chev" title="Detay">›</span></button>`;
@@ -1298,13 +1361,14 @@ function render(){
   });
   $("#main").innerHTML=html;
   renderNowBar();
+  try{ Rem.queue(); }catch(_){}
 }
 
 /* ---------- sheets ---------- */
 let openSheetEl=null;
 function openSheet(el){ closeSheet(); openSheetEl=el; $("#scrim").classList.add("on"); el.classList.add("on"); }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && openSheetEl && !S.busy) closeSheet(); });
-function closeSheet(){ if(openSheetEl){ openSheetEl.classList.remove("on"); openSheetEl=null; } $("#scrim").classList.remove("on"); }
+function closeSheet(){ try{ Reh.stop(); }catch(_){} if(openSheetEl){ openSheetEl.classList.remove("on"); openSheetEl=null; } $("#scrim").classList.remove("on"); }
 $("#scrim").addEventListener("click",()=>{ if(!S.busy) closeSheet(); });
 // swipe down to close
 document.querySelectorAll(".sheet").forEach(sh=>{
@@ -1335,6 +1399,8 @@ $("#main").addEventListener("click",e=>{
     clearTap();
     S.tap={id, t:setTimeout(()=>{ S.tap=null; showScene(k,ref); },280)};
     return; }
+  const rx=e.target.closest("[data-revx]");
+  if(rx){ const k=rx.dataset.revx; const day=S.days[k]; if(day){ const copy=JSON.parse(JSON.stringify(day)); delete copy.rev; Store.putDay(k,copy).catch(()=>{}); } return; }
   const dm=e.target.closest("[data-daymenu]");
   if(dm){ showDayMenu(dm.dataset.daymenu); }
 });
@@ -1377,6 +1443,7 @@ function showManage(){
   openSheet($("#manSheet"));
 }
 $("#btnManage").onclick=showManage;
+$("#btnStats").onclick=showStats;
 
 $("#charChip").onclick=()=>{ $("#charIn2").value=S.character; openSheet($("#charSheet")); };
 $("#btnCharSave").onclick=async()=>{ const v=$("#charIn2").value.trim(); closeSheet();
@@ -1403,8 +1470,9 @@ function showScene(k,i){
     <div class="sd-set">${esc(s.set||"")}</div>
     ${tags.length?`<div class="sd-tags">${tags.join("")}</div>`:""}
     <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(tcase(s.synopsis,s.characters)):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
-    ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
+    ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>isMe(c)?`<span class="me">${esc(c)}</span>`:`<button data-partner="${esc(c)}">${esc(c)}</button>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
+    <div class="sd-sec"><h3>Notum</h3><textarea id="noteIn" class="note" rows="2" placeholder="Devamlılık, kostüm, yönetmen notu…">${esc(Notes.get(s))}</textarea></div>
     ${scriptSection(s)}
     ${(()=>{ const bl=isNowKey(k,keyOf(s))?nowScenes():[]; return bl.length>1&&bl.some(x=>scriptFor(x).found.length)?`<button class="btn ghost" id="btnBlockScript">📖 Bloğun tamamını oku · ${bl.length} sahne</button>`:""; })()}
     <button class="btn nowbtn" id="btnNow">${isNowKey(k,keyOf(s))?"■ Şimdi'den çıkar":(S.now&&S.now.date===k?"＋ Bloğa ekle":"▶ Şimdi bunu çekiyoruz")}</button>
@@ -1415,18 +1483,56 @@ function showScene(k,i){
     toggleNow(k,s);
   };
   $("#btnDone").onclick=async()=>{ closeSheet(); await setDone(k,s,!isDone(day,s)); };
+  const ni=$("#noteIn"); const saveNote=()=>{ if(Notes.set(s,ni.value)) render(); };
+  ni.addEventListener("change",saveNote); ni.addEventListener("blur",saveNote);
+  $("#sceneBody").querySelectorAll("[data-partner]").forEach(b=>b.onclick=()=>showPartner(b.dataset.partner));
   const bs=$("#btnScript"); if(bs) bs.onclick=()=>showScript(s);
   const bb=$("#btnBlockScript"); if(bb) bb.onclick=()=>{ const l=nowScenes(); showScriptList(l,`Blok · ${l.length} sahne`); };
   const bp=$("#btnPickScript"); if(bp) bp.onclick=()=>pickScript(s,()=>{ if(scriptFor(s).found.length) showScript(s); });
   openSheet($("#sceneSheet"));
 }
 
+function goScene(k,i){ closeSheet(); const d=parseIso(k); S.weekStart=mondayOf(d); S.selected=k; render(); scrollToDay(k); setTimeout(()=>showScene(k,i),250); }
+function dayShort(k){ const d=parseIso(k); return `${TR_SHORT[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()].slice(0,3)}`; }
+// every scene of mine that also has this character, across all loaded days
+function showPartner(name){
+  const N=upTR(name); const rows=[];
+  Object.keys(S.days).sort().forEach(k=>(S.days[k].scenes||[]).forEach((s,i)=>{ if((s.characters||[]).some(c=>upTR(c)===N)) rows.push({k,i,s}); }));
+  const pages=rows.reduce((a,r)=>a+pagesNum(r.s.pages),0);
+  $("#dayBody").innerHTML=`<h2>${esc(name)} ile sahnelerin</h2><p class="hint">${rows.length} sahne · ${String(Math.round(pages*100)/100).replace(".",",")} sayfa · yüklü programlara göre</p>`+
+    rows.map(r=>`<button class="btn ghost plist" data-go="${r.k}|${r.i}"><b>${esc(dayShort(r.k))}</b> · Sahne ${esc(shortNo(r.s.sceneNo).txt)} · ${esc(r.s.set||"")}${isDone(S.days[r.k],r.s)?" ✓":""}</button>`).join("");
+  $("#dayBody").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{ const [k,i]=b.dataset.go.split("|"); goScene(k,+i); });
+  openSheet($("#daySheet"));
+}
+function showStats(){
+  const eps={}; const partners={}; let days=0, scenes=0, pages=0, done=0; const names=myNames();
+  Object.keys(S.days).sort().forEach(k=>{ const day=S.days[k]; const list=day.scenes||[]; if(!list.length) return; days++;
+    list.forEach(s=>{ scenes++; const pg=pagesNum(s.pages); pages+=pg; const dn=isDone(day,s); if(dn) done++;
+      const e=epRaw(s)||"?"; const o=eps[e]||(eps[e]={scenes:0,pages:0,done:0,days:new Set()}); o.scenes++; o.pages+=pg; if(dn) o.done++; o.days.add(k);
+      (s.characters||[]).forEach(c=>{ if(names.length && window.SetParser.castMatches(c,names)) return; const u=upTR(c).replace(/\s*\?$/,""); if(u) partners[u]=(partners[u]||0)+1; }); }); });
+  const f=n=>String(Math.round(n*100)/100).replace(".",",");
+  const epKeys=Object.keys(eps).sort((a,b)=>(parseInt(b)||0)-(parseInt(a)||0));
+  const top=Object.entries(partners).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  $("#dayBody").innerHTML=`<h2>Sezon özeti</h2><p class="hint">Yüklü programlara göre${S.character?" · "+esc(S.character):""}</p>
+    <div class="stats"><div><b>${days}</b><span>set günü</span></div><div><b>${scenes}</b><span>sahne</span></div><div><b>${f(pages)}</b><span>sayfa</span></div><div><b>${done}</b><span>çekildi</span></div></div>
+    ${epKeys.length?`<h3 class="st-h">Bölümlere göre</h3><div class="st-t">${epKeys.map(e=>`<div class="st-r"><span>${esc(/^\d+$/.test(e)?e+". bölüm":e==="?"?"Bölümü yok":"Bölüm "+e)}</span><span>${eps[e].scenes} sahne</span><span>${f(eps[e].pages)} sf</span><span>${eps[e].days.size} gün</span></div>`).join("")}</div>`:""}
+    ${top.length?`<h3 class="st-h">En çok birlikte oynadıkların</h3><div class="chars">${top.map(([n,c])=>`<button data-partner="${esc(n)}">${esc(n)} · ${c}</button>`).join("")}</div>`:""}
+    ${scenes?"":`<p class="hint">Henüz sahnen yok. Program yükleyince burası dolar.</p>`}`;
+  $("#dayBody").querySelectorAll("[data-partner]").forEach(b=>b.onclick=()=>showPartner(b.dataset.partner));
+  openSheet($("#daySheet"));
+}
+function dayText(k){ const day=S.days[k]; const d=parseIso(k);
+  const lines=[`🎬 ${TR_DAYS[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()]}${day.callTime?" · Set "+day.callTime:""}`];
+  (day.scenes||[]).forEach(s=>lines.push(`• Sahne ${s.sceneNo} – ${s.set||""}${[s.intExt,s.dayNight].filter(Boolean).length?" ("+[s.intExt,s.dayNight].filter(Boolean).join("/")+")":""}${s.pages?" · "+s.pages+" sf":""}`));
+  if(!(day.scenes||[]).length) lines.push("Sahnem yok");
+  return lines.join("\n"); }
 function showDayMenu(k){
   const day=S.days[k]; const d=parseIso(k);
   $("#dayBody").innerHTML = `<h2>${TR_DAYS[d.getDay()]}, ${d.getDate()} ${TR_MON[d.getMonth()]}</h2>
     <p class="hint">${day?.sourceName?("Kaynak: "+esc(day.sourceName)):""}</p>
     ${day?.scenes?.some(x=>scriptFor(x).found.length)?`<button class="btn ghost" id="dmRead">📖 Bu günün senaryosunu oku · ${day.scenes.length} sahne</button>`:""}
     ${day?.scenes?.length?`<button class="btn ghost" id="dmCal">📅 Bu günü takvime ekle</button>`:""}
+    ${day?.scenes?.length?`<button class="btn ghost" id="dmShare">📤 Günü paylaş</button>`:""}
     <button class="btn ghost" id="dmCopy">Sahne listesini kopyala</button>
     <button class="btn danger" id="dmDel">Bu günü sil</button>
     ${day?.sourceName?`<button class="btn danger" id="dmDelP">Bu programın tamamını sil</button>`:""}`;
@@ -1436,6 +1542,9 @@ function showDayMenu(k){
     closeSheet(); try{ for(const x of ks) await Store.delDay(x); toast(ks.length+" gün silindi"); }catch(e){ toast("Silinemedi"); }
   };
   const dc=$("#dmCal"); if(dc) dc.onclick=()=>{ closeSheet(); addToCalendar([k]); };
+  const dsh=$("#dmShare"); if(dsh) dsh.onclick=async()=>{ const text=dayText(k); closeSheet();
+    try{ if(navigator.share){ await navigator.share({text}); return; } }catch(e){ if(e && e.name==="AbortError") return; }
+    try{ await navigator.clipboard.writeText(text); toast("Paylaşım açılamadı, liste kopyalandı"); }catch(e){ toast("Paylaşılamadı"); } };
   const dr=$("#dmRead"); if(dr) dr.onclick=()=>{ const l=dayOrder(day).filter(x=>(day.scenes||[]).some(m=>keyOf(m)===keyOf(x))); showScriptList(l.length?l:day.scenes,`${TR_DAYS[d.getDay()]} · ${(l.length?l:day.scenes).length} sahne`); };
   $("#dmCopy").onclick=async()=>{
     const lines=[`${TR_DAYS[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()]}${day.callTime?" – Call "+day.callTime:""}`];
@@ -1865,10 +1974,21 @@ $("#btnParse").onclick=async()=>{
     }
     if(!all.length) throw new Error("Programda tarih bulunamadı. 'Hangi gün?' alanını seçip tekrar dene.");
     setStatus(true,"Kaydediliyor…");
+    // what changed against the program already loaded for the same day
+    let revCount=0;
+    all.forEach(o=>{ const prev=S.days[o.date]; delete o.rev;
+      if(!prev || !replace || S.demo || prev.sourceName==="Örnek program") return;
+      const pn=(prev.scenes||[]).map(x=>x.sceneNo), nn=(o.scenes||[]).map(x=>x.sceneNo);
+      const added=nn.filter(x=>!pn.includes(x)), removed=pn.filter(x=>!nn.includes(x));
+      const moved=pn.filter(x=>nn.includes(x)).join("|")!==nn.filter(x=>pn.includes(x)).join("|");
+      const call=(prev.callTime && o.callTime && prev.callTime!==o.callTime) ? {from:prev.callTime,to:o.callTime} : null;
+      const removedTo={}; removed.forEach(no=>{ const t=all.find(x=>x.date!==o.date && (x.scenes||[]).some(y=>y.sceneNo===no)); if(t) removedTo[no]=t.date; });
+      if(added.length||removed.length||moved||call){ o.rev={at:new Date().toISOString(),added,removed,removedTo,moved,call}; revCount++; }
+    });
     const r=await saveDays(all);
     S.busy=false; S.files=[]; renderFiles(); closeSheet();
     S.weekStart=mondayOf(parseIso(r.firstDate)); S.selected=r.firstDate; render(); scrollToDay(r.firstDate);
-    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${newScripts.length?" · "+newScripts.map(x=>epName(x.episode)+" senaryosu").join(", "):""}${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
+    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${revCount?` · ${revCount} günde revize var`:""}${newScripts.length?" · "+newScripts.map(x=>epName(x.episode)+" senaryosu").join(", "):""}${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
   }catch(e){
     S.busy=false; renderFiles();
     const m = e?.code==="not_granted" ? "Yapay zekâ izni verilmedi." : e?.code==="rate_limited" ? "Çok sık deneme yapıldı, biraz bekleyip tekrar dene." : (e?.message||"Bir hata oldu.");
@@ -1915,7 +2035,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.23-1";
+const APP_VERSION="2026.11.23-2";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -1963,6 +2083,79 @@ function pickerMode(){ const ok=canPhoto();
   if(s) s.textContent= ok ? "Birden fazla sayfa/fotoğraf seçebilirsin" : "Birden fazla PDF seçebilirsin";
   const n=document.getElementById("photoNote"); if(n) n.hidden=!ok; }
 pickerMode();
+/* ---- rehearsal: the phone reads the other characters, waits for my lines ---- */
+const Reh={ on:false, i:0, els:[], tok:0,
+  mute:(()=>{ try{ return localStorage.getItem("setprog.rehMute")==="1"; }catch(e){ return false; } })(),
+  canSpeak(){ return "speechSynthesis" in window && typeof SpeechSynthesisUtterance!=="undefined"; },
+  start(){ const sb=$("#scriptBody"); this.els=[...sb.querySelectorAll(".scr-dlg")]; if(!this.els.length) return;
+    this.on=true; this.i=0; sb.classList.add("memo","reh"); sb.querySelectorAll(".scr-dlg.shown").forEach(e=>e.classList.remove("shown"));
+    const tools=sb.querySelector(".scr-tools"); if(tools) tools.hidden=true;
+    sb.insertAdjacentHTML("beforeend",`<div class="rehbar" id="rehBar"><span id="rehMsg"></span><button id="rehMute" aria-label="Sesli okumayı aç/kapat"></button><button id="rehNext">Devam ›</button><button id="rehStop" aria-label="Provayı bitir">✕</button></div>`);
+    $("#rehNext").onclick=()=>this.next(); $("#rehStop").onclick=()=>this.stop();
+    $("#rehMute").onclick=()=>{ this.mute=!this.mute; try{ localStorage.setItem("setprog.rehMute",this.mute?"1":"0"); }catch(e){} this.tok++; try{ speechSynthesis.cancel(); }catch(e){} this.step(); };
+    this.step(); },
+  stop(){ if(!this.on) return; this.on=false; this.tok++; try{ speechSynthesis.cancel(); }catch(e){}
+    const sb=$("#scriptBody"); sb.classList.remove("reh","memo"); sb.querySelectorAll(".cur").forEach(e=>e.classList.remove("cur"));
+    const b=$("#rehBar"); if(b) b.remove(); const tools=sb.querySelector(".scr-tools"); if(tools) tools.hidden=false;
+    const m=$("#scrMemo"); if(m){ m.setAttribute("aria-pressed","false"); m.textContent="🙈 Ezber modu"; } },
+  msg(t){ const m=$("#rehMsg"); if(m) m.textContent=t; const mu=$("#rehMute"); if(mu){ mu.textContent=this.mute||!this.canSpeak()?"🔇":"🔊"; mu.hidden=!this.canSpeak(); } },
+  step(){ if(!this.on) return; const sb=$("#scriptBody"); sb.querySelectorAll(".cur").forEach(e=>e.classList.remove("cur"));
+    const el=this.els[this.i]; if(!el){ this.stop(); toast("Prova bitti 👏"); return; }
+    el.classList.add("cur"); const cue=el.previousElementSibling; if(cue && cue.classList.contains("scr-cue")) cue.classList.add("cur");
+    try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){}
+    const n=`${this.i+1}/${this.els.length}`;
+    if(el.classList.contains("me")){ this.msg(`Sıra sende · ${n}`); return; }
+    if(this.mute || !this.canSpeak()){ this.msg(`Karşı replik · ${n}`); return; }
+    this.msg(`Okunuyor · ${n}`); const tok=++this.tok;
+    try{ const u=new SpeechSynthesisUtterance(el.textContent); u.lang="tr-TR"; const fin=()=>{ if(tok!==this.tok||!this.on) return; this.tok++; this.i++; this.step(); };
+      u.onend=fin; u.onerror=fin; this._u=u; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ this.msg(`Karşı replik · ${n}`); } },
+  next(){ if(!this.on) return; const el=this.els[this.i];
+    if(el && el.classList.contains("me") && !el.classList.contains("shown")){ el.classList.add("shown"); this.msg("Repliğin bu · doğruysa Devam"); return; }
+    this.tok++; try{ speechSynthesis.cancel(); }catch(e){} this.i++; this.step(); }
+};
+
+/* ---- evening reminder: "Yarın 3 sahnen var" the night before a shooting day (iPhone app only) ---- */
+const Rem={
+  cfg:(()=>{ try{ return Object.assign({on:false,h:21,m:0},JSON.parse(localStorage.getItem("setprog.rem")||"{}")); }catch(e){ return {on:false,h:21,m:0}; } })(),
+  native(){ const c=window.Capacitor; return !!(c && c.isNativePlatform && c.isNativePlatform() && c.nativePromise); },
+  save(){ try{ localStorage.setItem("setprog.rem",JSON.stringify(this.cfg)); }catch(e){} },
+  call(m,o){ return window.Capacitor.nativePromise("LocalNotifications",m,o||{}); },
+  plan(){ const out=[]; const now=new Date();
+    Object.keys(S.days).sort().forEach(k=>{ const day=S.days[k]; const n=day?.scenes?.length||0; if(!n) return;
+      const d=parseIso(k); const w=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1,this.cfg.h,this.cfg.m,0);
+      if(w<=now) return; const f=day.scenes[0];
+      out.push({id:91000+Math.round(d.getTime()/864e5)%900, when:w, title:`Yarın ${n} sahnen var`,
+        body:[day.callTime?"Set "+day.callTime:"", `İlk sahnen ${shortNo(f.sceneNo).txt}${f.set?" – "+f.set:""}`].filter(Boolean).join(" · ")}); });
+    return out.slice(0,20); },
+  async sync(){ if(!this.native()) return;
+    try{
+      const p=await this.call("getPending"); const ids=((p&&p.notifications)||[]).filter(n=>n.id>=91000&&n.id<92000).map(n=>({id:n.id}));
+      if(ids.length) await this.call("cancel",{notifications:ids});
+      if(!this.cfg.on) return;
+      const list=this.plan(); if(!list.length) return;
+      await this.call("schedule",{notifications:list.map(x=>({id:x.id,title:x.title,body:x.body,
+        schedule:{on:{year:x.when.getFullYear(),month:x.when.getMonth()+1,day:x.when.getDate(),hour:x.when.getHours(),minute:x.when.getMinutes()}}}))});
+    }catch(e){ console.warn("hatırlatma",e); } },
+  queue(){ if(!this.native()) return; clearTimeout(this._t);
+    this._t=setTimeout(()=>{ const sig=JSON.stringify([this.cfg,this.plan().map(x=>[x.id,x.title,x.body])]); if(sig===this._sig) return; this._sig=sig; this.sync(); },1500); },
+  ui(){ const box=$("#remBox"); if(!box) return; box.hidden=!(this.native() || window.__remForce);
+    $("#remOn").checked=!!this.cfg.on; $("#remTime").value=this.cfg.h+":"+String(this.cfg.m).padStart(2,"0"); $("#remTime").disabled=!this.cfg.on; }
+};
+window.__remPlan=()=>Rem.plan().map(x=>({id:x.id,title:x.title,body:x.body,when:iso(x.when)+" "+x.when.getHours()+":"+String(x.when.getMinutes()).padStart(2,"0")}));
+(function(){ const sel=$("#remTime"); if(!sel) return;
+  for(let h=17;h<=23;h++) for(const m of [0,30]) sel.insertAdjacentHTML("beforeend",`<option value="${h}:${String(m).padStart(2,"0")}">${h}:${String(m).padStart(2,"0")}</option>`);
+  $("#remOn").addEventListener("change",async e=>{
+    if(e.target.checked && Rem.native()){
+      try{ const r=await Rem.call("requestPermissions"); if(!r || r.display!=="granted"){ e.target.checked=false; toast("Bildirim izni kapalı. iPhone Ayarlar › Bildirimler'den açabilirsin.",4500); } }
+      catch(_){ e.target.checked=false; toast("Bildirim açılamadı"); }
+    }
+    Rem.cfg.on=e.target.checked; Rem.save(); Rem.ui(); Rem._sig=null; Rem.sync();
+    if(Rem.cfg.on) toast("Sahnen olan günlerden önceki akşam hatırlatacağım");
+  });
+  sel.addEventListener("change",()=>{ const [h,m]=sel.value.split(":").map(Number); Rem.cfg.h=h; Rem.cfg.m=m; Rem.save(); Rem._sig=null; Rem.sync(); });
+  $("#btnSettings").addEventListener("click",()=>Rem.ui());
+})();
+
 /* ---- sample program (for first-time users and App Review) ---- */
 document.addEventListener("click",async e=>{
   if(!e.target.closest || !e.target.closest("#btnDemo") || S.busy) return;
