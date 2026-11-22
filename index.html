@@ -351,6 +351,18 @@ header .seg.top button{height:30px;font-size:12.5px}
 .tip{margin-top:12px;display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:14px;padding:11px 12px;font-size:12.5px;line-height:1.45;color:var(--ink)}
 .tip b{color:var(--accent-t)}
 .tip button{margin-left:auto;color:var(--mute);font-size:18px;line-height:1;padding:0 2px}
+
+.scr-sep{margin:22px 0 4px;padding:8px 10px;border-radius:10px;background:var(--panel2);font-weight:800;font-size:13px;color:var(--accent-t)}
+.scr-sep:first-of-type{margin-top:6px}
+.scr-sep small{font-weight:600;color:var(--mute);margin-left:6px}
+.scr-miss{color:var(--dim);font-size:13px;margin:6px 2px 0}
+.scr-alts{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 6px}
+.scr-alts button{font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:9px;border:1px solid var(--line2);color:var(--mute)}
+.scr-alts button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.nowbar{gap:6px}
+.nowbar .nb-b{padding:0 9px}
+.nowbar #nbRead,.nowbar #nbDone{width:34px;padding:0;font-size:14px}
+.nowbar .nb-k{letter-spacing:.4px}
 </style>
 </head>
 <body>
@@ -717,13 +729,25 @@ function lines(page){
   return out;
 }
 
-function detectEpisode(pages, fileName){
-  const first=pages.slice(0,2).map(p=>p.items.map(i=>i.s).join(" ")).join(" ");
-  let m=up(first).match(/(\d{1,3})\s*\.?\s*BÖLÜM/);
-  if(m) return m[1];
-  m=String(fileName||"").match(/(\d{1,3})/);
-  return m?m[1]:"";
+// "FİNAL DEVAMI" / "FİNAL" labels (dotless/ASCII spellings too)
+function finalLabel(text){
+  const U=up(text).replace(/FINAL/g,"FİNAL");
+  if(/FİNAL\s*(DEVAM|2\b|II\b)/.test(U)) return "FİNAL DEVAMI";
+  if(/FİNAL/.test(U)) return "FİNAL";
+  return "";
 }
+function detectEpisodeInfo(pages, fileName){
+  const first=pages.slice(0,2).map(p=>p.items.map(i=>i.s).join(" ")).join(" ");
+  // only the title page counts: story text can contain the word "final"
+  const p1=pages[0]?pages[0].items.map(i=>i.s).join(" "):"";
+  const fin=(pages[0]&&pages[0].items.length<60?finalLabel(p1):"") || finalLabel(fileName);
+  let m=up(first).match(/(\d{1,3})\s*\.?\s*BÖLÜM/);
+  let ep=m?String(+m[1]):"";
+  if(!ep && !fin){ m=String(fileName||"").match(/(\d{1,3})/); ep=m?String(+m[1]):""; }
+  if(!ep) return {episode:fin, aliases:[]};
+  return {episode:ep, aliases:fin?[fin]:[]};
+}
+function detectEpisode(pages, fileName){ return detectEpisodeInfo(pages,fileName).episode; }
 
 function parse(pages, opts){
   opts=opts||{};
@@ -771,7 +795,8 @@ function parse(pages, opts){
       push(kind,txt,L.y);
     });
   });
-  return {episode:detectEpisode(pages,opts.fileName), scenes};
+  const info=detectEpisodeInfo(pages,opts.fileName);
+  return {episode:info.episode, aliases:info.aliases, scenes};
 }
 
 // "24A-25-27" -> ["24A","25","27"]; parts that go backwards ("137-3") are sub-parts, not scenes
@@ -796,7 +821,7 @@ function findScenes(script, no){
   return out;
 }
 
-const api={parse, sceneParts, findScenes, detectEpisode};
+const api={parse, sceneParts, findScenes, detectEpisode, detectEpisodeInfo, finalLabel};
 if(typeof module!=="undefined" && module.exports) module.exports=api; else root.ScriptParser=api;
 })(typeof window!=="undefined"?window:globalThis);
 
@@ -819,7 +844,8 @@ const S = {
   busy: false,
   now: loadNow(),
   sumOpen: (()=>{ try{ return localStorage.getItem("setprog.sum")==="1"; }catch(e){ return false; } })(),
-  view: (()=>{ try{ return localStorage.getItem("setprog.view")||"mine"; }catch(e){ return "mine"; } })()
+  view: (()=>{ try{ return localStorage.getItem("setprog.view")||"mine"; }catch(e){ return "mine"; } })(),
+  scriptPick: (()=>{ try{ return JSON.parse(localStorage.getItem("setprog.scriptPick")||"{}"); }catch(e){ return {}; } })()
 };
 
 /* ---------- date helpers ---------- */
@@ -968,6 +994,7 @@ function renderNowBar(){
   bar.innerHTML=`<button class="nb-main" id="nbGo" aria-label="Şimdi çekilen sahneye git"><span class="nb-k"><i></i>ŞİMDİ${one?"":" · BLOK "+list.length+" SAHNE"}${teams.length===1?" · "+esc(teams[0]):""}</span>
       <span class="nb-t">${one?`Sahne ${esc(s.sceneNo)} · ${esc(s.set||"")}`:`Sahne ${list.map(x=>esc(x.sceneNo)).join(" + ")}`}</span>
       <span class="nb-n">${!one&&sets.length?esc(sets.join(" / "))+" · ":""}${nx?"Sıradaki: "+esc(nx.sceneNo):"Ekibin son sahnesi"}</span></button>
+    ${list.some(x=>scriptFor(x).found.length)?`<button class="nb-b" id="nbRead" aria-label="${one?"Senaryoyu oku":"Bloğun senaryosunu oku"}">📖</button>`:""}
     <button class="nb-b" id="nbDone" aria-label="Çekildi, modu kapat">✓</button>
     ${nx?`<button class="nb-b" id="nbNext">Sıradaki ›</button>`:""}
     <button class="nb-b nb-x" id="nbX" aria-label="Şimdi modunu kapat">✕</button>`;
@@ -990,7 +1017,8 @@ async function finishNow(advance){
   toast(list.length>1?`✓ ${list.length} sahne çekildi`:"✓ Çekildi",1200);
 }
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("#nbGo,#nbDone,#nbNext,#nbX"); if(!t) return;
+  const t=e.target.closest("#nbGo,#nbDone,#nbNext,#nbX,#nbRead"); if(!t) return;
+  if(t.id==="nbRead"){ const l=nowScenes(); if(l.length===1) showScript(l[0]); else showScriptList(l,`Blok · ${l.length} sahne`); return; }
   if(t.id==="nbGo") goToNow();
   else if(t.id==="nbX"){ setNowKeys(null,null); toast("Şimdi modu kapandı",1400); }
   else await finishNow(t.id==="nbNext");
@@ -1011,9 +1039,49 @@ const Scripts={
     await new Promise(res=>{ const tx=db.transaction("scripts","readwrite"); tx.objectStore("scripts").put(x); tx.oncomplete=res; tx.onerror=res; }); },
   async del(ep){ delete this.map[ep]; const db=this.db||await this.open(); if(!db) return;
     await new Promise(res=>{ const tx=db.transaction("scripts","readwrite"); tx.objectStore("scripts").delete(ep); tx.oncomplete=res; tx.onerror=res; }); },
-  list(){ return Object.values(this.map).sort((a,b)=>(+b.episode)-(+a.episode)); }
+  list(){ const n=x=>/^\d+$/.test(x.episode)?+x.episode:1e4; return Object.values(this.map).sort((a,b)=>n(b)-n(a)||String(a.episode).localeCompare(String(b.episode),"tr")); }
 };
-function episodeOf(s){ return String(s.blm || (String(s.extra||"").match(/Bölüm:\s*(\d+)/)||[])[1] || "").trim(); }
+function epRaw(s){ return String(s.blm || (String(s.extra||"").match(/Bölüm:\s*([^\n·]+)/)||[])[1] || "").trim(); }
+function episodeOf(s){ return epRaw(s); }
+function upTR(t){ return String(t||"").replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().replace(/\s+/g," ").trim(); }
+// "40-41" -> ["40","41"]; "FİNAL DEVAMI" -> ["FİNAL DEVAMI","FİNAL"]; leftovers from earlier episodes are tried too
+function epCandidates(s){
+  const raw=epRaw(s); const U=upTR(raw).replace(/FINAL/g,"FİNAL"); const out=[];
+  if(/FİNAL/.test(U)){ const dev=/DEVAM|\b2\b|\bII\b/.test(U); out.push(dev?"FİNAL DEVAMI":"FİNAL", dev?"FİNAL":"FİNAL DEVAMI"); }
+  (U.match(/\d{1,3}/g)||[]).forEach(n=>out.push(String(+n)));
+  return [...new Set(out)];
+}
+function scriptsFor(label){ return Scripts.list().filter(x=>x.episode===label || (x.aliases||[]).includes(label)); }
+// how well a script scene fits the program row: location words + İÇ/DIŞ + GÜN/GECE
+function fitScore(s,scs){
+  const words=upTR(s.set).split(/[^0-9A-ZÇĞİÖŞÜ]+/).filter(w=>w.length>2);
+  let sc=0; scs.forEach(x=>{ const h=upTR(x.heading);
+    words.forEach(w=>{ if(h.includes(w)) sc+=2; });
+    if(s.intExt && h.includes(upTR(s.intExt).replace("/",""))) sc+=1;
+    if(s.dayNight && h.includes(upTR(s.dayNight))) sc+=1; });
+  return sc;
+}
+function scriptFor(s){
+  const cands=epCandidates(s); const alts=[];
+  cands.forEach(c=>scriptsFor(c).forEach(sc=>{
+    if(alts.some(a=>a.sc===sc)) return;
+    const found=window.ScriptParser.findScenes(sc,s.sceneNo);
+    alts.push({ep:sc.episode, sc, found, score:found.length?100+fitScore(s,found):0});
+  }));
+  // manual choice for this scene wins
+  const pick=S.scriptPick&&S.scriptPick[s.sceneNo+"|"+epRaw(s)];
+  alts.sort((a,b)=>(b.sc.episode===pick)-(a.sc.episode===pick) || b.score-a.score);
+  // not found: a leftover from the previous episode may carry only the current number
+  if(!alts.some(a=>a.found.length)) cands.filter(c=>/^\d+$/.test(c)).forEach(c=>scriptsFor(String(+c-1)).forEach(sc=>{
+    if(alts.some(a=>a.sc===sc)) return; const found=window.ScriptParser.findScenes(sc,s.sceneNo);
+    if(found.length) alts.push({ep:sc.episode, sc, found, score:50+fitScore(s,found)}); }));
+  alts.sort((a,b)=>(b.sc.episode===pick)-(a.sc.episode===pick) || b.score-a.score);
+  const best=alts.find(a=>a.found.length);
+  const ep=cands.length?cands.join(" / "):"";
+  if(best) return {ep:best.ep, sc:best.sc, found:best.found, alts:alts.filter(a=>a.found.length), cands};
+  return {ep, sc:alts[0]?.sc||null, found:[], alts:[], cands};
+}
+function epName(e){ return /^\d+$/.test(e)?e+". bölüm":String(e).toLocaleLowerCase("tr").replace(/^./,c=>c.toLocaleUpperCase("tr")); }
 function myNames(){ return String(S.character||"").split(",").map(x=>x.trim()).filter(Boolean); }
 // "ORUÇ(V.O)", "ORUÇ-ŞİRİN(SES/EKRAN)" are mine; "ÇOCUK ORUÇ", "GENÇ ŞERİF" are another actor
 function isMyCue(cue){
@@ -1023,17 +1091,30 @@ function isMyCue(cue){
     return window.SetParser.castMatches(p,names);
   });
 }
-function scriptFor(s){ const ep=episodeOf(s); const sc=ep&&Scripts.map[ep]; return {ep, sc, found: sc?window.ScriptParser.findScenes(sc,s.sceneNo):[]}; }
 function scriptSection(s){
-  const {ep,sc,found}=scriptFor(s);
-  if(!sc) return `<div class="sd-sec"><h3>Senaryo</h3><p style="color:var(--dim);font-size:13.5px">${ep?ep+". bölümün":"Bu bölümün"} senaryo PDF'ini yüklersen sahnenin metni burada açılır.</p></div>`;
-  if(!found.length) return `<div class="sd-sec"><h3>Senaryo</h3><p style="color:var(--dim);font-size:13.5px">${ep}. bölüm senaryosunda bu sahne numarası bulunamadı.</p></div>`;
+  const {ep,sc,found,cands}=scriptFor(s);
+  const noScript = `<div class="sd-sec"><h3>Senaryo</h3><p style="color:var(--dim);font-size:13.5px">${cands.length?cands.map(epName).join(" ya da ")+" senaryosunu":"Bu bölümün senaryo PDF'ini"} yüklersen sahnenin metni burada açılır.</p>${Scripts.list().length?`<button class="btn ghost" id="btnPickScript">📖 Yüklü senaryolardan seç</button>`:""}</div>`;
+  if(!found.length) return sc ? `<div class="sd-sec"><h3>Senaryo</h3><p style="color:var(--dim);font-size:13.5px">${esc(epName(ep))} senaryosunda bu sahne numarası bulunamadı.</p><button class="btn ghost" id="btnPickScript">📖 Başka senaryodan seç</button></div>` : noScript;
   const lines=found.reduce((a,x)=>a+x.blocks.filter(b=>b.t==="cue"&&isMyCue(b.text)).length,0);
-  return `<button class="btn ghost" id="btnScript">📖 Senaryoyu oku · Sahne ${found.map(x=>esc(x.no)).join(", ")}${lines?` · ${lines} replik`:""}</button>`;
+  return `<button class="btn ghost" id="btnScript">📖 Senaryoyu oku · ${esc(epName(ep))} · Sahne ${found.map(x=>esc(x.no)).join(", ")}${lines?` · ${lines} replik`:""}</button>`;
 }
-function showScript(s){
-  const {ep,found}=scriptFor(s); if(!found.length) return;
-  let html=`<div class="scr-top"><div class="sd-k">${esc(ep)}. bölüm · senaryo</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`;
+// let the actor choose which loaded script a scene belongs to (remembered per scene)
+function pickScript(s,after){
+  const list=Scripts.list(); if(!list.length) return;
+  $("#dayBody").innerHTML=`<h2>Sahne ${esc(s.sceneNo)} hangi senaryoda?</h2><p class="hint">Seçimin bu sahne için hatırlanır.</p>`+
+    list.map((x,i)=>{ const f=window.ScriptParser.findScenes(x,s.sceneNo);
+      return `<button class="btn ghost" data-pick="${i}" ${f.length?"":"disabled"}>📖 ${esc(epName(x.episode))}${(x.aliases||[]).length?" ("+x.aliases.map(epName).join(", ")+")":""}${f.length?"":" · sahne yok"}</button>`; }).join("");
+  $("#dayBody").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{
+    const x=list[+b.dataset.pick]; S.scriptPick=S.scriptPick||{}; S.scriptPick[s.sceneNo+"|"+epRaw(s)]=x.episode;
+    // "FİNAL" in the program but "42. BÖLÜM" on the script: remember the label for every scene
+    const lbl=epCandidates(s).find(c=>!/^\d+$/.test(c));
+    if(lbl && x.episode!==lbl && !(x.aliases||[]).includes(lbl)){ x.aliases=[...(x.aliases||[]),lbl]; Scripts.put(x).catch(()=>{}); }
+    try{ localStorage.setItem("setprog.scriptPick",JSON.stringify(S.scriptPick)); }catch(_){}
+    closeSheet(); after&&after(); });
+  openSheet($("#daySheet"));
+}
+function scriptBlocksHtml(found){
+  let html="";
   found.forEach(sc=>{
     html+=`<h3 class="scr-h"><span>${esc(sc.no)}</span>${esc(sc.heading)}</h3>`;
     let mine=false;
@@ -1043,9 +1124,34 @@ function showScript(s){
       else { mine=false; html+=`<p class="scr-act">${esc(b.text)}</p>`; }
     });
   });
-  $("#scriptBody").innerHTML=html;
+  return html;
+}
+function openScriptSheet(title,body){
+  $("#scriptBody").innerHTML=`<div class="scr-top"><div class="sd-k">${title}</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`+body;
   $("#scrClose").onclick=closeSheet;
+  $("#scriptBody").querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{ const s=window.__scrScene; if(!s) return;
+    S.scriptPick=S.scriptPick||{}; S.scriptPick[s.sceneNo+"|"+epRaw(s)]=b.dataset.alt;
+    try{ localStorage.setItem("setprog.scriptPick",JSON.stringify(S.scriptPick)); }catch(_){}
+    showScript(s); });
   openSheet($("#scriptSheet")); $("#scriptSheet").scrollTop=0;
+}
+// several program scenes read one after another (a block, or a whole day)
+function showScriptList(list,title){
+  let html=""; let any=false;
+  list.forEach(s=>{ const r=scriptFor(s);
+    html+=`<div class="scr-sep">Sahne ${esc(s.sceneNo)}${s.set?" · "+esc(s.set):""}${r.found.length?` <small>${esc(epName(r.ep))}</small>`:""}</div>`;
+    if(r.found.length){ any=true; html+=scriptBlocksHtml(r.found); }
+    else html+=`<p class="scr-miss">${r.cands.length?esc(r.cands.map(epName).join(" / "))+" senaryosu yüklü değil ya da bu sahne bulunamadı.":"Bu sahnenin senaryosu bulunamadı."}</p>`;
+  });
+  if(!any){ toast("Bu sahnelerin senaryosu yüklü değil"); return; }
+  window.__scrScene=null;
+  openScriptSheet(title,html);
+}
+function showScript(s){
+  const {ep,found,alts}=scriptFor(s); if(!found.length) return;
+  window.__scrScene=s;
+  const chips=alts.length>1?`<div class="scr-alts">${alts.map(a=>`<button class="${a.ep===ep?"on":""}" data-alt="${esc(a.ep)}">${esc(epName(a.ep))}</button>`).join("")}</div>`:"";
+  openScriptSheet(`${esc(epName(ep))} · senaryo`, chips+scriptBlocksHtml(found));
 }
 
 function sceneByRef(k,i){ const day=S.days[k]; if(!day) return null;
@@ -1250,7 +1356,7 @@ function showManage(){
     ${ps.map((p,i)=>{ const sc=p.days.reduce((a,d)=>a+(d.scenes?.length||0),0);
       return `<div class="prog"><div class="pi"><div class="pn">📄 ${esc(p.name)}</div><div class="pd">${fmtD(p.days[0].date)}${p.days.length>1?" – "+fmtD(p.days[p.days.length-1].date):""} · ${p.days.length} gün · ${sc} sahnen</div></div><button data-delp="${i}">Sil</button></div>`; }).join("")}
     ${ps.length>1?`<button class="btn danger" id="delAll">Tüm programları sil</button>`:""}
-    ${Scripts.list().length?`<h2 style="margin-top:22px">Senaryolar</h2>`+Scripts.list().map(x=>`<div class="prog"><div class="pi"><div class="pn">📖 ${esc(x.episode)}. bölüm</div><div class="pd">${esc(x.name)} · ${x.scenes.length} sahne</div></div><button data-dels="${esc(x.episode)}">Sil</button></div>`).join(""):""}`;
+    ${Scripts.list().length?`<h2 style="margin-top:22px">Senaryolar</h2>`+Scripts.list().map(x=>`<div class="prog"><div class="pi"><div class="pn">📖 ${esc(epName(x.episode))}${(x.aliases||[]).length?" · "+esc(x.aliases.map(epName).join(", ")):""}</div><div class="pd">${esc(x.name)} · ${x.scenes.length} sahne</div></div><button data-dels="${esc(x.episode)}">Sil</button></div>`).join(""):""}`;
   $("#manBody").onclick=async e=>{
     const ds=e.target.closest("[data-dels]"); if(ds){
       if(!ds.dataset.sure){ ds.dataset.sure="1"; ds.textContent="Emin misin?"; return; }
@@ -1300,6 +1406,7 @@ function showScene(k,i){
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>`<span class="${isMe(c)?"me":""}">${esc(c)}</span>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
     ${scriptSection(s)}
+    ${(()=>{ const bl=isNowKey(k,keyOf(s))?nowScenes():[]; return bl.length>1&&bl.some(x=>scriptFor(x).found.length)?`<button class="btn ghost" id="btnBlockScript">📖 Bloğun tamamını oku · ${bl.length} sahne</button>`:""; })()}
     <button class="btn nowbtn" id="btnNow">${isNowKey(k,keyOf(s))?"■ Şimdi'den çıkar":(S.now&&S.now.date===k?"＋ Bloğa ekle":"▶ Şimdi bunu çekiyoruz")}</button>
     <button class="btn" id="btnDone">${isDone(day,s)?"↺ Çekilmedi olarak işaretle":"✓ Çekildi olarak işaretle"}</button>`;
   $("#btnNow").onclick=async()=>{
@@ -1309,6 +1416,8 @@ function showScene(k,i){
   };
   $("#btnDone").onclick=async()=>{ closeSheet(); await setDone(k,s,!isDone(day,s)); };
   const bs=$("#btnScript"); if(bs) bs.onclick=()=>showScript(s);
+  const bb=$("#btnBlockScript"); if(bb) bb.onclick=()=>{ const l=nowScenes(); showScriptList(l,`Blok · ${l.length} sahne`); };
+  const bp=$("#btnPickScript"); if(bp) bp.onclick=()=>pickScript(s,()=>{ if(scriptFor(s).found.length) showScript(s); });
   openSheet($("#sceneSheet"));
 }
 
@@ -1316,6 +1425,7 @@ function showDayMenu(k){
   const day=S.days[k]; const d=parseIso(k);
   $("#dayBody").innerHTML = `<h2>${TR_DAYS[d.getDay()]}, ${d.getDate()} ${TR_MON[d.getMonth()]}</h2>
     <p class="hint">${day?.sourceName?("Kaynak: "+esc(day.sourceName)):""}</p>
+    ${day?.scenes?.some(x=>scriptFor(x).found.length)?`<button class="btn ghost" id="dmRead">📖 Bu günün senaryosunu oku · ${day.scenes.length} sahne</button>`:""}
     ${day?.scenes?.length?`<button class="btn ghost" id="dmCal">📅 Bu günü takvime ekle</button>`:""}
     <button class="btn ghost" id="dmCopy">Sahne listesini kopyala</button>
     <button class="btn danger" id="dmDel">Bu günü sil</button>
@@ -1326,6 +1436,7 @@ function showDayMenu(k){
     closeSheet(); try{ for(const x of ks) await Store.delDay(x); toast(ks.length+" gün silindi"); }catch(e){ toast("Silinemedi"); }
   };
   const dc=$("#dmCal"); if(dc) dc.onclick=()=>{ closeSheet(); addToCalendar([k]); };
+  const dr=$("#dmRead"); if(dr) dr.onclick=()=>{ const l=dayOrder(day).filter(x=>(day.scenes||[]).some(m=>keyOf(m)===keyOf(x))); showScriptList(l.length?l:day.scenes,`${TR_DAYS[d.getDay()]} · ${(l.length?l:day.scenes).length} sahne`); };
   $("#dmCopy").onclick=async()=>{
     const lines=[`${TR_DAYS[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()]}${day.callTime?" – Call "+day.callTime:""}`];
     (day.scenes||[]).forEach(s=>lines.push(`Sh. ${s.sceneNo} – ${s.set||""}${s.dayNight?" ("+s.dayNight+")":""}`));
@@ -1677,7 +1788,7 @@ $("#btnParse").onclick=async()=>{
       if(!total){
         const sc=window.ScriptParser.parse(pages,{fileName:f.name});
         if(sc.scenes.length>=3 && sc.episode){
-          await Scripts.put({episode:sc.episode, name:f.name, scenes:sc.scenes, added:new Date().toISOString()});
+          await Scripts.put({episode:sc.episode, aliases:sc.aliases||[], name:f.name, scenes:sc.scenes, added:new Date().toISOString()});
           newScripts.push(sc); continue;
         }
         unreadPdfs.push(f);
@@ -1749,7 +1860,7 @@ $("#btnParse").onclick=async()=>{
     }
     if(!all.length && newScripts.length && !unreadPdfs.length && !imgs.length){
       S.busy=false; S.files=[]; renderFiles(); closeSheet(); render();
-      toast(newScripts.map(x=>`${x.episode}. bölüm senaryosu eklendi · ${x.scenes.length} sahne`).join(" · "),3600);
+      toast(newScripts.map(x=>`${epName(x.episode)} senaryosu eklendi · ${x.scenes.length} sahne`).join(" · "),3600);
       return;
     }
     if(!all.length) throw new Error("Programda tarih bulunamadı. 'Hangi gün?' alanını seçip tekrar dene.");
@@ -1757,7 +1868,7 @@ $("#btnParse").onclick=async()=>{
     const r=await saveDays(all);
     S.busy=false; S.files=[]; renderFiles(); closeSheet();
     S.weekStart=mondayOf(parseIso(r.firstDate)); S.selected=r.firstDate; render(); scrollToDay(r.firstDate);
-    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${newScripts.length?" · "+newScripts.map(x=>x.episode+". bölüm senaryosu").join(", "):""}${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
+    toast(`${r.dCount} gün · ${r.sCount} sahnen eklendi${newScripts.length?" · "+newScripts.map(x=>epName(x.episode)+" senaryosu").join(", "):""}${warns.length?" ⚠️ "+warns[0]:""}`, warns.length?6000:3200);
   }catch(e){
     S.busy=false; renderFiles();
     const m = e?.code==="not_granted" ? "Yapay zekâ izni verilmedi." : e?.code==="rate_limited" ? "Çok sık deneme yapıldı, biraz bekleyip tekrar dene." : (e?.message||"Bir hata oldu.");
@@ -1804,7 +1915,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.18-1";
+const APP_VERSION="2026.11.23-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
