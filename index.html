@@ -390,6 +390,25 @@ textarea.note{width:100%;box-sizing:border-box;background:var(--panel2);border:1
 .rehbar span{flex:1;min-width:0}
 .rehbar button{flex:none;height:36px;border-radius:10px;padding:0 12px;font-size:13px;font-weight:800;background:rgba(0,0,0,.14);color:inherit}
 select.sel{margin-top:8px;width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:inherit;padding:0 10px}
+
+/* ---- ink on the script ---- */
+.scr-sc{position:relative}
+.ink-l{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1}
+.ink-t{position:absolute;z-index:1;font-size:13.5px;font-weight:700;line-height:1.25;max-width:72%;white-space:pre-wrap;pointer-events:none;text-shadow:0 0 3px var(--sheet),0 0 3px var(--sheet),0 0 3px var(--sheet)}
+.draw.tool-text .ink-t{pointer-events:auto;outline:1px dashed var(--line2);outline-offset:3px;border-radius:4px;touch-action:none}
+textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizing:border-box;padding:4px 6px;border-radius:8px;border:1px solid var(--accent);background:var(--sheet);font:inherit;font-size:16px;font-weight:700;line-height:1.25;resize:none;overflow:hidden}
+.draw:not(.draw-hand):not(.tool-text) .scr-sc{touch-action:none;cursor:crosshair}
+.ink-warn{font-size:12px;color:var(--mute);margin:6px 0 0}
+.inkbar{position:sticky;bottom:0;display:flex;align-items:center;gap:5px;margin:16px -6px 0;padding:8px;border-radius:14px;background:var(--panel2);border:1px solid var(--line2);z-index:4;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.inkbar button{flex:1;min-width:0;height:38px;border-radius:10px;font-size:16px;font-weight:800;color:var(--ink);background:transparent;border:1px solid transparent}
+.inkbar button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.inkbar button:disabled{opacity:.35}
+.inkbar #inkColor i{display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid var(--line2);vertical-align:middle}
+.inkbar #inkDone{flex:1.6;font-size:13px;background:var(--accent);color:var(--accent-ink)}
+.rehbar{gap:5px}
+.rehbar button{padding:0 10px}
+.rehbar button:disabled{opacity:.35}
+.scr-tools button{font-size:12.5px;padding:0 4px}
 </style>
 </head>
 <body>
@@ -1158,16 +1177,18 @@ function pickScript(s,after){
   openSheet($("#daySheet"));
 }
 function noteHtml(s){ const n=Notes.get(s); return n?`<p class="scr-note">📝 ${esc(n)}</p>`:""; }
-function scriptBlocksHtml(found){
+function scriptBlocksHtml(found,ep){
   let html="";
   found.forEach(sc=>{
-    html+=`<h3 class="scr-h"><span>${esc(sc.no)}</span>${esc(sc.heading)}</h3>`;
+    const key=String(ep||"")+"|"+sc.no; const sig=Ink.sig(sc);
+    html+=`<section class="scr-sc" data-ink="${esc(key)}" data-sig="${sig}"><h3 class="scr-h"><span>${esc(sc.no)}</span>${esc(sc.heading)}</h3>`;
     let mine=false;
     sc.blocks.forEach(b=>{
       if(b.t==="cue"){ mine=isMyCue(b.text); html+=`<p class="scr-cue${mine?" me":""}">${esc(b.text)}</p>`; }
       else if(b.t==="dlg"||b.t==="paren"){ html+=`<p class="scr-${b.t}${mine?" me":""}">${esc(b.text)}</p>`; }
       else { mine=false; html+=`<p class="scr-act">${esc(b.text)}</p>`; }
     });
+    html+=`</section>`;
   });
   return html;
 }
@@ -1177,11 +1198,15 @@ function openScriptSheet(title,body){
   sb.innerHTML=`<div class="scr-top"><div class="sd-k">${title}</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`+body;
   $("#scrClose").onclick=closeSheet;
   if(sb.querySelector(".scr-dlg.me")){
-    sb.querySelector(".scr-top").insertAdjacentHTML("afterend",`<div class="scr-tools"><button id="scrMemo" aria-pressed="false">🙈 Ezber modu</button><button id="scrPlay">▶ Prova</button></div>`);
+    sb.querySelector(".scr-top").insertAdjacentHTML("afterend",`<div class="scr-tools"><button id="scrMemo" aria-pressed="false">🙈 Ezber modu</button><button id="scrPlay">▶ Prova</button><button id="scrInk">🖍 İşaretle</button></div>`);
     $("#scrMemo").onclick=()=>{ const on=!sb.classList.contains("memo"); sb.classList.toggle("memo",on); sb.querySelectorAll(".scr-dlg.shown").forEach(e=>e.classList.remove("shown"));
       $("#scrMemo").setAttribute("aria-pressed",on); $("#scrMemo").textContent=on?"👁 Replikleri göster":"🙈 Ezber modu"; };
     $("#scrPlay").onclick=()=>Reh.start();
+  } else {
+    sb.querySelector(".scr-top").insertAdjacentHTML("afterend",`<div class="scr-tools"><button id="scrInk">🖍 İşaretle</button></div>`);
   }
+  $("#scrInk").onclick=()=>Ink.toggle();
+  try{ Ink.stop(true); Ink.mount(); }catch(e){ console.warn(e); }
   sb.onclick=e=>{ const d=e.target.closest(".scr-dlg.me"); if(d && sb.classList.contains("memo") && !Reh.on) d.classList.toggle("shown"); };
   $("#scriptBody").querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{ const s=window.__scrScene; if(!s) return;
     S.scriptPick=S.scriptPick||{}; S.scriptPick[s.sceneNo+"|"+epRaw(s)]=b.dataset.alt;
@@ -1195,7 +1220,7 @@ function showScriptList(list,title){
   list.forEach(s=>{ const r=scriptFor(s);
     html+=`<div class="scr-sep">Sahne ${esc(s.sceneNo)}${s.set?" · "+esc(s.set):""}${r.found.length?` <small>${esc(epName(r.ep))}</small>`:""}</div>`;
     html+=noteHtml(s);
-    if(r.found.length){ any=true; html+=scriptBlocksHtml(r.found); }
+    if(r.found.length){ any=true; html+=scriptBlocksHtml(r.found,r.ep); }
     else html+=`<p class="scr-miss">${r.cands.length?esc(r.cands.map(epName).join(" / "))+" senaryosu yüklü değil ya da bu sahne bulunamadı.":"Bu sahnenin senaryosu bulunamadı."}</p>`;
   });
   if(!any){ toast("Bu sahnelerin senaryosu yüklü değil"); return; }
@@ -1206,7 +1231,7 @@ function showScript(s){
   const {ep,found,alts}=scriptFor(s); if(!found.length) return;
   window.__scrScene=s;
   const chips=alts.length>1?`<div class="scr-alts">${alts.map(a=>`<button class="${a.ep===ep?"on":""}" data-alt="${esc(a.ep)}">${esc(epName(a.ep))}</button>`).join("")}</div>`:"";
-  openScriptSheet(`${esc(epName(ep))} · senaryo`, chips+noteHtml(s)+scriptBlocksHtml(found));
+  openScriptSheet(`${esc(epName(ep))} · senaryo`, chips+noteHtml(s)+scriptBlocksHtml(found,ep));
 }
 
 function sceneByRef(k,i){ const day=S.days[k]; if(!day) return null;
@@ -1368,13 +1393,13 @@ function render(){
 let openSheetEl=null;
 function openSheet(el){ closeSheet(); openSheetEl=el; $("#scrim").classList.add("on"); el.classList.add("on"); }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && openSheetEl && !S.busy) closeSheet(); });
-function closeSheet(){ try{ Reh.stop(); }catch(_){} if(openSheetEl){ openSheetEl.classList.remove("on"); openSheetEl=null; } $("#scrim").classList.remove("on"); }
+function closeSheet(){ try{ Reh.stop(); }catch(_){} try{ Ink.stop(); }catch(_){} if(openSheetEl){ openSheetEl.classList.remove("on"); openSheetEl=null; } $("#scrim").classList.remove("on"); }
 $("#scrim").addEventListener("click",()=>{ if(!S.busy) closeSheet(); });
 // swipe down to close
 document.querySelectorAll(".sheet").forEach(sh=>{
   let y0=null;
   sh.addEventListener("touchstart",e=>{ if(sh.scrollTop<=0) y0=e.touches[0].clientY; else y0=null; },{passive:true});
-  sh.addEventListener("touchend",e=>{ if(y0!==null && e.changedTouches[0].clientY-y0>90 && !S.busy) closeSheet(); y0=null; },{passive:true});
+  sh.addEventListener("touchend",e=>{ if(y0!==null && e.changedTouches[0].clientY-y0>90 && !S.busy && !(typeof Ink!=="undefined" && Ink.on)) closeSheet(); y0=null; },{passive:true});
 });
 
 function toast(msg,ms=2600){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),ms); }
@@ -2035,7 +2060,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.23-2";
+const APP_VERSION="2026.11.23-3";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -2083,22 +2108,151 @@ function pickerMode(){ const ok=canPhoto();
   if(s) s.textContent= ok ? "Birden fazla sayfa/fotoğraf seçebilirsin" : "Birden fazla PDF seçebilirsin";
   const n=document.getElementById("photoNote"); if(n) n.hidden=!ok; }
 pickerMode();
+/* ---- ink: marker, pen, text notes and eraser on top of the script text ----
+   Stored per script scene ("episode|sceneNo") in the coordinate space of the width it was drawn at. */
+const INK_COLORS=["#f5c518","#3ddc84","#ff5fa2","ink"];
+const Ink={ on:false, tool:"marker", ci:0, undo:[], penSeen:false,
+  data:(()=>{ try{ return JSON.parse(localStorage.getItem("setprog.ink")||"{}")||{}; }catch(e){ return {}; } })(),
+  sig(sc){ let h=0; const t=sc.heading+"|"+sc.blocks.map(b=>b.text).join("|"); for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return (h>>>0).toString(36); },
+  save(){ try{ localStorage.setItem("setprog.ink",JSON.stringify(this.data)); }catch(e){ toast("İşaretler kaydedilemedi: telefonda yer kalmadı"); } },
+  col(c){ return c==="ink"?"var(--ink)":c; },
+  path(p){ if(p.length<4) return `M${p[0]} ${p[1]}l0 .01`; let d=`M${p[0]} ${p[1]}`; for(let i=2;i<p.length;i+=2) d+=`L${p[i]} ${p[i+1]}`; return d; },
+  attrs(st){ return `fill="none" stroke="${this.col(st.c)}" stroke-width="${st.k==="m"?16:2.4}" stroke-opacity="${st.k==="m"?.38:1}" stroke-linecap="round" stroke-linejoin="round"`; },
+  scale(sec,d){ return (d&&d.w ? sec.clientWidth/d.w : 1) || 1; },
+  mount(){ $("#scriptBody").querySelectorAll(".scr-sc").forEach(sec=>this.paint(sec)); },
+  paint(sec){ sec.querySelectorAll(".ink-l,.ink-t,.ink-warn").forEach(e=>e.remove());
+    const d=this.data[sec.dataset.ink]; if(!d || (!d.s.length && !d.t.length)) return;
+    const k=this.scale(sec,d);
+    sec.insertAdjacentHTML("beforeend",`<svg class="ink-l" aria-hidden="true"><g transform="scale(${k})">${d.s.map(st=>`<path d="${this.path(st.p)}" ${this.attrs(st)}/>`).join("")}</g></svg>`+
+      d.t.map((t,i)=>`<div class="ink-t" data-ti="${i}" style="left:${t.x*k}px;top:${t.y*k}px;color:${this.col(t.c)}">${esc(t.s)}</div>`).join("")+
+      (d.sig && d.sig!==sec.dataset.sig?`<p class="ink-warn">⚠️ Bu sahnenin metni değişmiş, işaretler kaymış olabilir.</p>`:"")); },
+  repaint(key){ $("#scriptBody").querySelectorAll(".scr-sc").forEach(sec=>{ if(sec.dataset.ink===key) this.paint(sec); }); },
+  // snapshot for undo, then make sure the scene has a record
+  begin(sec){ const key=sec.dataset.ink; const before=this.data[key]?JSON.stringify(this.data[key]):null;
+    if(!this.data[key]) this.data[key]={w:Math.round(sec.clientWidth),sig:sec.dataset.sig,s:[],t:[]};
+    return {key,before,d:this.data[key]}; },
+  commit(b){ const d=this.data[b.key]; if(d && !d.s.length && !d.t.length) delete this.data[b.key];
+    const after=this.data[b.key]?JSON.stringify(this.data[b.key]):null;
+    if(after!==b.before){ this.undo.push({key:b.key,before:b.before}); this.save(); }
+    this.repaint(b.key); this.ui(); },
+  undoLast(){ const u=this.undo.pop(); if(!u) return; if(u.before) this.data[u.key]=JSON.parse(u.before); else delete this.data[u.key]; this.save(); this.repaint(u.key); this.ui(); },
+  toggle(){ this.on?this.stop():this.start(); },
+  start(){ try{ Reh.stop(); }catch(_){} const sb=$("#scriptBody"); if(!sb.querySelector(".scr-sc")) return;
+    this.on=true; this.undo=[]; sb.classList.add("draw");
+    sb.insertAdjacentHTML("beforeend",`<div class="inkbar" id="inkBar"><button data-tool="marker" aria-label="Marker">🖍</button><button data-tool="pen" aria-label="Kalem">✏️</button><button data-tool="text" aria-label="Yazı notu">T</button><button data-tool="erase" aria-label="Silgi">⌫</button><button data-tool="hand" aria-label="Kaydır">✋</button><button id="inkColor" aria-label="Renk değiştir"><i></i></button><button id="inkUndo" aria-label="Geri al">↩︎</button><button id="inkDone">Bitti</button></div>`);
+    $("#inkBar").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{ this.endText(); this.tool=b.dataset.tool; this.ui(); });
+    $("#inkColor").onclick=()=>{ this.ci=(this.ci+1)%INK_COLORS.length; this.ui(); };
+    $("#inkUndo").onclick=()=>{ this.endText(); this.undoLast(); };
+    $("#inkDone").onclick=()=>this.stop();
+    const b=$("#scrInk"); if(b) b.textContent="✓ İşaretlemeyi bitir";
+    this.ui();
+    try{ if(!localStorage.getItem("setprog.inkTip")){ localStorage.setItem("setprog.inkTip","1"); toast("Tek parmakla çiz, iki parmakla kaydır. ✋ ile normal kaydırma.",5000); } }catch(_){} },
+  stop(){ if(!this.on) return; this.endText(); this.on=false; const sb=$("#scriptBody"); sb.classList.remove("draw","draw-hand","tool-text");
+    const bar=$("#inkBar"); if(bar) bar.remove(); const b=$("#scrInk"); if(b) b.textContent="🖍 İşaretle"; },
+  ui(){ const sb=$("#scriptBody"); const bar=$("#inkBar"); if(!bar) return;
+    bar.querySelectorAll("[data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===this.tool));
+    bar.querySelector("#inkColor i").style.background=this.col(INK_COLORS[this.ci]);
+    $("#inkUndo").disabled=!this.undo.length;
+    sb.classList.toggle("draw-hand",this.tool==="hand"); sb.classList.toggle("tool-text",this.tool==="text"); },
+  // ---- text notes ----
+  endText(){ const ta=$("#scriptBody").querySelector("textarea.ink-in"); if(ta) ta.blur(); },
+  editText(sec,x,y,ti){ this.endText(); const b=this.begin(sec); const k=this.scale(sec,b.d); const old=ti!=null?b.d.t[ti]:null;
+    const px=old?old.x*k:x, py=old?old.y*k:y;
+    const ta=document.createElement("textarea"); ta.className="ink-in"; ta.rows=1; ta.value=old?old.s:""; ta.placeholder="Not yaz";
+    ta.style.left=Math.max(0,Math.min(px,sec.clientWidth-150))+"px"; ta.style.top=py+"px"; ta.style.color=this.col(old?old.c:INK_COLORS[this.ci]);
+    const el=old?sec.querySelector(`.ink-t[data-ti="${ti}"]`):null; if(el) el.style.visibility="hidden";
+    sec.appendChild(ta); ta.focus();
+    const grow=()=>{ ta.style.height="auto"; ta.style.height=ta.scrollHeight+"px"; }; ta.addEventListener("input",grow); grow();
+    ta.addEventListener("blur",()=>{ const v=ta.value.trim(); ta.remove();
+      if(old){ if(v) old.s=v; else b.d.t.splice(ti,1); }
+      else if(v) b.d.t.push({x:Math.round(parseFloat(ta.style.left)/k*10)/10,y:Math.round(py/k*10)/10,s:v,c:INK_COLORS[this.ci]});
+      this.commit(b); },{once:true}); },
+  init(){ const sb=$("#scriptBody"), sheet=$("#scriptSheet"); const touches=new Set(); let cur=null, pan=null, drag=null, skipClick=false;
+    const pt=(c,e)=>({x:Math.round((e.clientX-c.r.left)/c.k*10)/10, y:Math.round((e.clientY-c.r.top)/c.k*10)/10});
+    const add=(c,e)=>{ const p=pt(c,e); const n=c.pts.length; if(n && Math.hypot(p.x-c.pts[n-2],p.y-c.pts[n-1])<1.5) return; c.pts.push(p.x,p.y); };
+    const erase=(c,e)=>{ const p=pt(c,e), R=14/c.k; const d=c.b.d; const ns=d.s.length, nt=d.t.length;
+      const segDist=(ax,ay,bx,by)=>{ const dx=bx-ax, dy=by-ay; const L=dx*dx+dy*dy; let t=L?((p.x-ax)*dx+(p.y-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); return Math.hypot(p.x-(ax+t*dx),p.y-(ay+t*dy)); };
+      d.s=d.s.filter(st=>{ const lim=R+(st.k==="m"?8:0); const q=st.p; if(q.length<4) return Math.hypot(q[0]-p.x,q[1]-p.y)>=lim;
+        for(let i=0;i+3<q.length;i+=2) if(segDist(q[i],q[i+1],q[i+2],q[i+3])<lim) return false; return true; });
+      d.t=d.t.filter(t=>!(p.x>t.x-6 && p.x<t.x+140 && p.y>t.y-6 && p.y<t.y+26));
+      if(d.s.length!==ns || d.t.length!==nt) this.paint(c.sec); };
+    sb.addEventListener("pointerdown",e=>{
+      if(!this.on || this.tool==="hand") return;
+      if(e.target.closest(".inkbar,.scr-tools,.scr-top,textarea,.scr-alts")) return;
+      if(e.pointerType==="pen") this.penSeen=true;
+      if(e.pointerType==="touch"){ touches.add(e.pointerId);
+        if(this.penSeen || touches.size>1){ if(cur){ this.data[cur.b.key]=cur.b.before?JSON.parse(cur.b.before):undefined; if(!cur.b.before) delete this.data[cur.b.key]; this.paint(cur.sec); cur=null; }
+          pan={id:e.pointerId,y:e.clientY}; return; } }
+      const sec=e.target.closest(".scr-sc"); if(!sec) return;
+      if(this.tool==="text"){ const t=e.target.closest(".ink-t");
+        if(t){ const b=this.begin(sec); drag={id:e.pointerId,sec,b,ti:+t.dataset.ti,el:t,x:e.clientX,y:e.clientY,k:this.scale(sec,b.d),moved:false}; try{ sb.setPointerCapture(e.pointerId); }catch(_){} }
+        return; }
+      e.preventDefault(); this.endText();
+      const b=this.begin(sec); cur={id:e.pointerId,sec,b,k:this.scale(sec,b.d),r:sec.getBoundingClientRect(),pts:[]};
+      try{ sb.setPointerCapture(e.pointerId); }catch(_){}
+      if(this.tool==="erase"){ cur.erase=true; erase(cur,e); return; }
+      cur.st={k:this.tool==="marker"?"m":"p",c:INK_COLORS[this.ci],p:cur.pts};
+      let svg=sec.querySelector(".ink-l"); if(!svg){ sec.insertAdjacentHTML("beforeend",`<svg class="ink-l" aria-hidden="true"><g transform="scale(${cur.k})"></g></svg>`); svg=sec.querySelector(".ink-l"); }
+      svg.firstElementChild.insertAdjacentHTML("beforeend",`<path ${this.attrs(cur.st)}/>`); cur.el=svg.firstElementChild.lastElementChild;
+      add(cur,e); cur.el.setAttribute("d",this.path(cur.pts));
+    });
+    sb.addEventListener("pointermove",e=>{
+      if(pan && e.pointerId===pan.id){ sheet.scrollTop-=e.clientY-pan.y; pan.y=e.clientY; return; }
+      if(drag && e.pointerId===drag.id){ const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return; drag.moved=true;
+        const t=drag.b.d.t[drag.ti]; drag.el.style.left=(t.x*drag.k+dx)+"px"; drag.el.style.top=(t.y*drag.k+dy)+"px"; return; }
+      if(!cur || e.pointerId!==cur.id) return; e.preventDefault();
+      const evs=e.getCoalescedEvents?e.getCoalescedEvents():[]; (evs.length?evs:[e]).forEach(ev=>cur.erase?erase(cur,ev):add(cur,ev));
+      if(!cur.erase) cur.el.setAttribute("d",this.path(cur.pts));
+    });
+    const up=e=>{ touches.delete(e.pointerId);
+      if(pan && e.pointerId===pan.id){ pan=null; return; }
+      if(drag && e.pointerId===drag.id){ const g=drag; drag=null;
+        if(g.moved){ const t=g.b.d.t[g.ti]; t.x=Math.max(0,Math.round((t.x+(e.clientX-g.x)/g.k)*10)/10); t.y=Math.max(0,Math.round((t.y+(e.clientY-g.y)/g.k)*10)/10); this.commit(g.b); }
+        else this.editText(g.sec,0,0,g.ti);
+        skipClick=true; setTimeout(()=>skipClick=false,350);
+        return; }
+      if(!cur || e.pointerId!==cur.id) return; const c=cur; cur=null;
+      if(!c.erase){ const p=c.pts;
+        if(p.length>=2){
+          if(p.length===2) p.push(p[0]+.1,p[1]);
+          // a marker pass that stays on one line is straightened
+          if(c.st.k==="m"){ let lo=1e9,hi=-1e9,sum=0; for(let i=1;i<p.length;i+=2){ lo=Math.min(lo,p[i]); hi=Math.max(hi,p[i]); sum+=p[i]; }
+            if(hi-lo<12 && Math.abs(p[p.length-2]-p[0])>24){ const y=Math.round(sum/(p.length/2)*10)/10; c.st.p=[p[0],y,p[p.length-2],y]; } }
+          c.b.d.s.push(c.st); } }
+      this.commit(c.b);
+    };
+    sb.addEventListener("pointerup",up); sb.addEventListener("pointercancel",up);
+    sb.addEventListener("click",e=>{ if(!this.on || this.tool!=="text" || skipClick) return;
+      if(e.target.closest(".inkbar,.scr-tools,.scr-top,textarea,.scr-alts")) return;
+      const sec=e.target.closest(".scr-sc"); if(!sec) return; const t=e.target.closest(".ink-t"); const r=sec.getBoundingClientRect();
+      this.editText(sec,e.clientX-r.left,e.clientY-r.top-10,t?+t.dataset.ti:null); });
+  }
+};
+Ink.init();
+
 /* ---- rehearsal: the phone reads the other characters, waits for my lines ---- */
 const Reh={ on:false, i:0, els:[], tok:0,
   mute:(()=>{ try{ return localStorage.getItem("setprog.rehMute")==="1"; }catch(e){ return false; } })(),
+  hide:(()=>{ try{ return localStorage.getItem("setprog.rehHide")!=="0"; }catch(e){ return true; } })(),
   canSpeak(){ return "speechSynthesis" in window && typeof SpeechSynthesisUtterance!=="undefined"; },
   start(){ const sb=$("#scriptBody"); this.els=[...sb.querySelectorAll(".scr-dlg")]; if(!this.els.length) return;
-    this.on=true; this.i=0; sb.classList.add("memo","reh"); sb.querySelectorAll(".scr-dlg.shown").forEach(e=>e.classList.remove("shown"));
+    try{ Ink.stop(); }catch(_){}
+    this.on=true; this.i=0; sb.classList.add("reh"); sb.classList.toggle("memo",this.hide); sb.querySelectorAll(".scr-dlg.shown").forEach(e=>e.classList.remove("shown"));
     const tools=sb.querySelector(".scr-tools"); if(tools) tools.hidden=true;
-    sb.insertAdjacentHTML("beforeend",`<div class="rehbar" id="rehBar"><span id="rehMsg"></span><button id="rehMute" aria-label="Sesli okumayı aç/kapat"></button><button id="rehNext">Devam ›</button><button id="rehStop" aria-label="Provayı bitir">✕</button></div>`);
-    $("#rehNext").onclick=()=>this.next(); $("#rehStop").onclick=()=>this.stop();
+    sb.insertAdjacentHTML("beforeend",`<div class="rehbar" id="rehBar"><span id="rehMsg"></span><button id="rehHide"></button><button id="rehMute" aria-label="Sesli okumayı aç/kapat"></button><button id="rehPrev" aria-label="Önceki replik">‹</button><button id="rehNext">Devam ›</button><button id="rehStop" aria-label="Provayı bitir">✕</button></div>`);
+    $("#rehNext").onclick=()=>this.next(); $("#rehPrev").onclick=()=>this.prev(); $("#rehStop").onclick=()=>this.stop();
+    $("#rehHide").onclick=()=>{ this.hide=!this.hide; try{ localStorage.setItem("setprog.rehHide",this.hide?"1":"0"); }catch(e){}
+      sb.classList.toggle("memo",this.hide); sb.querySelectorAll(".scr-dlg.shown").forEach(e=>e.classList.remove("shown")); this.label(); };
     $("#rehMute").onclick=()=>{ this.mute=!this.mute; try{ localStorage.setItem("setprog.rehMute",this.mute?"1":"0"); }catch(e){} this.tok++; try{ speechSynthesis.cancel(); }catch(e){} this.step(); };
     this.step(); },
   stop(){ if(!this.on) return; this.on=false; this.tok++; try{ speechSynthesis.cancel(); }catch(e){}
     const sb=$("#scriptBody"); sb.classList.remove("reh","memo"); sb.querySelectorAll(".cur").forEach(e=>e.classList.remove("cur"));
     const b=$("#rehBar"); if(b) b.remove(); const tools=sb.querySelector(".scr-tools"); if(tools) tools.hidden=false;
     const m=$("#scrMemo"); if(m){ m.setAttribute("aria-pressed","false"); m.textContent="🙈 Ezber modu"; } },
-  msg(t){ const m=$("#rehMsg"); if(m) m.textContent=t; const mu=$("#rehMute"); if(mu){ mu.textContent=this.mute||!this.canSpeak()?"🔇":"🔊"; mu.hidden=!this.canSpeak(); } },
+  label(){ const h=$("#rehHide"); if(h){ h.textContent=this.hide?"👁":"🙈"; h.setAttribute("aria-label",this.hide?"Repliklerimi göster":"Repliklerimi gizle"); }
+    const mu=$("#rehMute"); if(mu){ mu.textContent=this.mute||!this.canSpeak()?"🔇":"🔊"; mu.hidden=!this.canSpeak(); }
+    const pv=$("#rehPrev"); if(pv) pv.disabled=this.i<=0; },
+  msg(t){ const m=$("#rehMsg"); if(m) m.textContent=t; this.label(); },
   step(){ if(!this.on) return; const sb=$("#scriptBody"); sb.querySelectorAll(".cur").forEach(e=>e.classList.remove("cur"));
     const el=this.els[this.i]; if(!el){ this.stop(); toast("Prova bitti 👏"); return; }
     el.classList.add("cur"); const cue=el.previousElementSibling; if(cue && cue.classList.contains("scr-cue")) cue.classList.add("cur");
@@ -2110,8 +2264,11 @@ const Reh={ on:false, i:0, els:[], tok:0,
     try{ const u=new SpeechSynthesisUtterance(el.textContent); u.lang="tr-TR"; const fin=()=>{ if(tok!==this.tok||!this.on) return; this.tok++; this.i++; this.step(); };
       u.onend=fin; u.onerror=fin; this._u=u; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ this.msg(`Karşı replik · ${n}`); } },
   next(){ if(!this.on) return; const el=this.els[this.i];
-    if(el && el.classList.contains("me") && !el.classList.contains("shown")){ el.classList.add("shown"); this.msg("Repliğin bu · doğruysa Devam"); return; }
-    this.tok++; try{ speechSynthesis.cancel(); }catch(e){} this.i++; this.step(); }
+    if(this.hide && el && el.classList.contains("me") && !el.classList.contains("shown")){ el.classList.add("shown"); this.msg("Repliğin bu · doğruysa Devam"); return; }
+    this.tok++; try{ speechSynthesis.cancel(); }catch(e){} this.i++; this.step(); },
+  prev(){ if(!this.on || this.i<=0) return; this.tok++; try{ speechSynthesis.cancel(); }catch(e){}
+    const cur=this.els[this.i]; if(cur) cur.classList.remove("shown");
+    this.i--; const el=this.els[this.i]; if(el) el.classList.remove("shown"); this.step(); }
 };
 
 /* ---- evening reminder: "Yarın 3 sahnen var" the night before a shooting day (iPhone app only) ---- */
