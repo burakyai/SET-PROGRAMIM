@@ -412,6 +412,11 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
 .teamhead.mine{font-size:12px;color:var(--accent-t);margin:14px 2px 0;padding-top:10px;border-top:1px solid var(--line)}
 .teamhead.mine span{color:var(--mute);font-weight:600}
 .dayhead + .teamhead.mine,.rev + .teamhead.mine{border-top:0;padding-top:0;margin-top:8px}
+.cols{display:flex;gap:10px;flex-wrap:wrap}
+.cols button{width:38px;height:38px;border-radius:50%;background:var(--c,transparent);border:2px solid var(--line2);color:var(--mute);font-size:15px;font-weight:800}
+.cols button[aria-pressed="true"]{box-shadow:0 0 0 3px var(--sheet),0 0 0 5px var(--ink)}
+.scene.tag{border-left:6px solid var(--tag)}
+.scene.tag .no b{color:var(--tag)}
 </style>
 </head>
 <body>
@@ -933,7 +938,7 @@ const Store = {
         snap.docs.forEach(d=>{
           const v=d.data(); if(!v) return;
           if(d.id==="settings"){ if(typeof v.character==="string") S.character=v.character; }
-          else if(d.id==="notes"){ if(v.map && typeof v.map==="object") Notes.map=v.map; }
+          else if(d.id==="notes"){ if(v.map && typeof v.map==="object") Notes.map=v.map; if(v.tags && typeof v.tags==="object") Tags.map=v.tags; }
           else if(d.id.startsWith("d-")) days[d.id.slice(2)] = v;
         });
         S.days=days; render();
@@ -1104,8 +1109,17 @@ const Notes={ map:(()=>{ try{ return JSON.parse(localStorage.getItem("setprog.no
   set(s,t){ const k=noteKey(s); t=String(t||"").trim(); if((this.map[k]||"")===t) return false;
     if(t) this.map[k]=t; else delete this.map[k];
     try{ localStorage.setItem("setprog.notes",JSON.stringify(this.map)); }catch(e){}
-    try{ if(Store.mode==="db") Promise.resolve(Store.db.collection("data/users/"+Store.uid).doc("notes").set({map:this.map})).catch(()=>{}); }catch(e){}
+    syncMarks();
     return true; } };
+function syncMarks(){ try{ if(Store.mode==="db") Promise.resolve(Store.db.collection("data/users/"+Store.uid).doc("notes").set({map:Notes.map,tags:Tags.map})).catch(()=>{}); }catch(e){} }
+// colour tag per scene (episode|sceneNo), chosen by the actor
+const TAG_COLORS=[["#ff5a5a","Kırmızı"],["#ff9f43","Turuncu"],["#3ddc84","Yeşil"],["#4da3ff","Mavi"],["#b98cff","Mor"],["#ff5fa2","Pembe"]];
+const Tags={ map:(()=>{ try{ return JSON.parse(localStorage.getItem("setprog.tags")||"{}")||{}; }catch(e){ return {}; } })(),
+  get(s){ const c=this.map[noteKey(s)]; return TAG_COLORS.some(x=>x[0]===c)?c:""; },
+  set(s,c){ const k=noteKey(s); if(c) this.map[k]=c; else delete this.map[k];
+    try{ localStorage.setItem("setprog.tags",JSON.stringify(this.map)); }catch(e){}
+    syncMarks(); } };
+function tagAttr(s){ const c=Tags.get(s); return c?` style="--tag:${c}"`:""; }
 function pagesNum(p){ const m=String(p||"").replace(",",".").match(/\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
 function epRaw(s){ return String(s.blm || (String(s.extra||"").match(/Bölüm:\s*([^\n·]+)/)||[])[1] || "").trim(); }
 function episodeOf(s){ return epRaw(s); }
@@ -1263,12 +1277,12 @@ function renderAll(k,day){
     const ln=sceneLine(s);
     if(s.mine){
       const fx=cardFx(k,s);
-      h+=`<button class="scene mine${done?" done":""}${fx.cls}" data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
+      h+=`<button class="scene mine${done?" done":""}${fx.cls}${Tags.get(s)?" tag":""}"${tagAttr(s)} data-scene="${k}|${mi!==undefined?mi:"a"+i}">${noBox(s)}
         <div class="body">${fx.pill}<div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
         ${s.synopsis?`<div class="sum">${esc(tcase(s.synopsis,s.characters))}</div>`:""}${fx.more||""}</div><span class="chev" title="Detay">›</span></button>`;
     } else {
       const fx=cardFx(k,s);
-      h+=`<button class="scene other${done?" done":""}${fx.cls}" data-scene="${k}|a${i}">${noBox(s)}
+      h+=`<button class="scene other${done?" done":""}${fx.cls}${Tags.get(s)?" tag":""}"${tagAttr(s)} data-scene="${k}|a${i}">${noBox(s)}
         <div class="body">${fx.pill}<div class="set">${esc(s.set||"")}</div>${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
         ${fx.more!==undefined ? (s.synopsis?`<div class="sum">${esc(tcase(s.synopsis,s.characters))}</div>`:"")+fx.more : (s.characters?.length?`<div class="sum">${esc(s.characters.join(", "))}</div>`:"")}</div><span class="chev" title="Detay">›</span></button>`;
     }
@@ -1382,7 +1396,7 @@ function render(){
         if(s.uncertain) ln.push("<span style=\"color:var(--accent-t)\">? teyit et</span>");
         if(Notes.get(s)) ln.push("📝 not");
         const fx=cardFx(k,s);
-        html += `<button class="scene${s.done?" done":""}${fx.cls}" data-scene="${k}|${i}">
+        html += `<button class="scene${s.done?" done":""}${fx.cls}${Tags.get(s)?" tag":""}"${tagAttr(s)} data-scene="${k}|${i}">
           ${(()=>{const n=shortNo(s.sceneNo);const c=n.txt.length>7?"s":n.txt.length>4?"m":"";return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`;})()}
           <div class="body">${day.rev?.added?.includes(s.sceneNo)?`<span class="pill new">YENİ</span> `:""}${fx.pill}<div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
           ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
@@ -1506,6 +1520,7 @@ function showScene(k,i){
     <div class="sd-sec"><h3>Sahne özeti</h3><p>${s.synopsis?esc(tcase(s.synopsis,s.characters)):'<span style="color:var(--dim)">Programda özet yok</span>'}</p></div>
     ${s.characters?.length?`<div class="sd-sec"><h3>Sahnedeki karakterler</h3><div class="chars">${s.characters.map(c=>isMe(c)?`<span class="me">${esc(c)}</span>`:`<button data-partner="${esc(c)}">${esc(c)}</button>`).join("")}</div></div>`:""}
     ${s.extra?`<div class="sd-sec"><h3>Notlar</h3><p>${esc(s.extra)}</p></div>`:""}
+    <div class="sd-sec"><h3>Renk</h3><div class="cols" id="tagCols"><button data-c="" aria-label="Renk yok" aria-pressed="${!Tags.get(s)}">✕</button>${TAG_COLORS.map(([c,n])=>`<button data-c="${c}" aria-label="${n}" aria-pressed="${Tags.get(s)===c}" style="--c:${c}"></button>`).join("")}</div></div>
     <div class="sd-sec"><h3>Notum</h3><textarea id="noteIn" class="note" rows="2" placeholder="Devamlılık, kostüm, yönetmen notu…">${esc(Notes.get(s))}</textarea></div>
     ${scriptSection(s)}
     ${(()=>{ const bl=isNowKey(k,keyOf(s))?nowScenes():[]; return bl.length>1&&bl.some(x=>scriptFor(x).found.length)?`<button class="btn ghost" id="btnBlockScript">📖 Bloğun tamamını oku · ${bl.length} sahne</button>`:""; })()}
@@ -1517,6 +1532,7 @@ function showScene(k,i){
     toggleNow(k,s);
   };
   $("#btnDone").onclick=async()=>{ closeSheet(); await setDone(k,s,!isDone(day,s)); };
+  $("#tagCols").querySelectorAll("button").forEach(b=>b.onclick=()=>{ Tags.set(s,b.dataset.c); $("#tagCols").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
   const ni=$("#noteIn"); const saveNote=()=>{ if(Notes.set(s,ni.value)) render(); };
   ni.addEventListener("change",saveNote); ni.addEventListener("blur",saveNote);
   $("#sceneBody").querySelectorAll("[data-partner]").forEach(b=>b.onclick=()=>showPartner(b.dataset.partner));
@@ -2069,7 +2085,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.23-4";
+const APP_VERSION="2026.11.23-5";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{

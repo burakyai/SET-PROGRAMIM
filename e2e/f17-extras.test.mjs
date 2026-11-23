@@ -123,3 +123,20 @@ test("F17-H7 ezber modu ve prova: repliklerim gizlenir, dokununca açılır; pro
   assert.equal(await p.locator("#rehBar").count(), 0);
   await assert.doesNotReject(p.getByText("Prova bitti 👏").waitFor({ timeout: 3000 }));
 });
+
+test("F17-H8 renk etiketi: detayda seçilir, kart o renkle işaretlenir, kalır, kaldırılır", async () => {
+  const p = app.page;
+  await demo(p);
+  await detail(p, "8");
+  await p.locator("#sceneBody").getByRole("button", { name: "Mavi" }).click(); await p.waitForTimeout(150);
+  assert.equal(await p.locator("#sceneBody").getByRole("button", { name: "Mavi" }).getAttribute("aria-pressed"), "true");
+  await p.keyboard.press("Escape"); await p.waitForTimeout(300);
+  const card = scene(p, "8");
+  assert.equal(await card.evaluate((e) => getComputedStyle(e).borderLeftColor), "rgb(77, 163, 255)");
+  assert.equal(await p.locator("#main .scene.tag").count(), 1, "yalnızca o sahne");
+  await p.reload(); await p.waitForTimeout(800);
+  assert.equal(await scene(p, "8").evaluate((e) => e.classList.contains("tag")), true);
+  await detail(p, "8");
+  await p.locator("#sceneBody").getByRole("button", { name: "Renk yok" }).click(); await p.waitForTimeout(150);
+  assert.equal(await p.locator("#main .scene.tag").count(), 0);
+});
