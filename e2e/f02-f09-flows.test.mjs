@@ -276,3 +276,14 @@ test("BUG-014 Claude dışında dosya seçici yalnızca PDF ister (iPhone'da 'Fo
   assert.match(await p.locator("#dropT").innerText(), /PDF seç/);
   assert.doesNotMatch(await p.locator("#upSheet").innerText(), /fotoğraf/i);
 });
+
+test("F19-H1 benim sahnelerim: sahneler ekip başlıkları altında gruplanır", async () => {
+  const p = app.page;
+  await upload(p, ["haftalik.pdf"]);
+  const day = p.locator("#day-2026-11-09");
+  assert.deepEqual(await day.locator(".teamhead").allInnerTexts(), ["1. EKİP · 3 sahne", "2. EKİP · 1 sahne"]);
+  // order in the DOM: head, 3 scenes, head, 1 scene
+  const seq = await day.evaluate((el) => [...el.querySelectorAll(".teamhead, .scene")].map((e) => (e.classList.contains("teamhead") ? "H" : "S")).join(""));
+  assert.equal(seq, "HSSSHS");
+  assert.doesNotMatch(await day.locator(".scene .ln").first().innerText(), /EKİP/, "ekip satırda tekrar yazmaz");
+});

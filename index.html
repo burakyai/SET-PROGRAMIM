@@ -409,6 +409,9 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
 .rehbar button{padding:0 10px}
 .rehbar button:disabled{opacity:.35}
 .scr-tools button{font-size:12.5px;padding:0 4px}
+.teamhead.mine{font-size:12px;color:var(--accent-t);margin:14px 2px 0;padding-top:10px;border-top:1px solid var(--line)}
+.teamhead.mine span{color:var(--mute);font-weight:600}
+.dayhead + .teamhead.mine,.rev + .teamhead.mine{border-top:0;padding-top:0;margin-top:8px}
 </style>
 </head>
 <body>
@@ -1363,13 +1366,19 @@ function render(){
     else if(S.view==="all" && day.all?.length){ html += renderAll(k,day); }
     else if(!day.scenes?.length){ html += `<div class="empty">Bu gün senin sahnen yok 🎉</div>`; }
     else {
-      day.scenes.forEach((s,i)=>{
+      // group my scenes under their team (1. EKİP / 2. EKİP), keeping the shooting order inside each
+      const teams=[]; day.scenes.forEach(s=>{ const t=s.team||""; if(!teams.includes(t)) teams.push(t); });
+      const grouped=teams.some(t=>t);
+      const order=grouped ? teams.flatMap(t=>day.scenes.map((s,i)=>i).filter(i=>(day.scenes[i].team||"")===t)) : day.scenes.map((s,i)=>i);
+      let lastTeam=null;
+      order.forEach(i=>{ const s=day.scenes[i];
+        if(grouped && (s.team||"")!==lastTeam){ lastTeam=s.team||""; const n=day.scenes.filter(x=>(x.team||"")===lastTeam).length;
+          html+=`<div class="teamhead mine">${esc(lastTeam||"Ekip belirtilmemiş")}<span> · ${n} sahne</span></div>`; }
         const ln=[];
         if(s.intExt) ln.push(esc(s.intExt));
         if(s.dayNight) ln.push(`<span class="dn-ic">${dnIcon(s.dayNight)}</span> ${esc(s.dayNight)}`);
         if(s.pages) ln.push(esc(s.pages)+" sf");
         if(s.time) ln.push("⏱ "+esc(s.time));
-        if(s.team) ln.push(esc(s.team));
         if(s.uncertain) ln.push("<span style=\"color:var(--accent-t)\">? teyit et</span>");
         if(Notes.get(s)) ln.push("📝 not");
         const fx=cardFx(k,s);
@@ -2060,7 +2069,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.23-3";
+const APP_VERSION="2026.11.23-4";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
