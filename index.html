@@ -290,8 +290,8 @@ main{padding:0 16px}
 .scr-cue{font-size:12.5px;font-weight:800;letter-spacing:.6px;text-align:center;margin:14px 0 2px;color:var(--mute)}
 .scr-dlg,.scr-paren{font-size:16px;line-height:1.55;margin:0 22px 10px;padding:2px 8px;border-radius:8px}
 .scr-paren{font-style:italic;font-size:14px;color:var(--mute);margin-bottom:2px}
-.scr-cue.me{color:var(--accent)}
-.scr-dlg.me{background:color-mix(in srgb,var(--accent) 16%,transparent);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+.scr-cue.me{color:var(--me,var(--accent))}
+.scr-dlg.me{background:color-mix(in srgb,var(--me,var(--accent)) 18%,transparent);box-shadow:inset 3px 0 0 var(--me,var(--accent));font-weight:600}
 
 /* now shooting */
 .nowbar{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:8px 8px 8px 12px}
@@ -417,6 +417,11 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
 .cols button[aria-pressed="true"]{box-shadow:0 0 0 3px var(--sheet),0 0 0 5px var(--ink)}
 .scene.tag{border-left:6px solid var(--tag)}
 .scene.tag .no b{color:var(--tag)}
+.scr-top .scr-colbtn{margin-left:auto;margin-right:8px;width:36px;padding:0;display:grid;place-items:center}
+.scr-top .scr-colbtn i{width:18px;height:18px;border-radius:50%;border:2px solid var(--line2)}
+.scr-cols{margin:0 0 10px}
+.scr-cols[hidden],.scr-top .scr-colbtn[hidden]{display:none}
+.scr-cols button{width:34px;height:34px}
 </style>
 </head>
 <body>
@@ -1193,6 +1198,9 @@ function pickScript(s,after){
     closeSheet(); after&&after(); });
   openSheet($("#daySheet"));
 }
+// highlight colour of my own lines in the script
+const LINE_COLORS=[["","Sarı"],["#3ddc84","Yeşil"],["#4da3ff","Mavi"],["#ff5fa2","Pembe"],["#ff9f43","Turuncu"],["#b98cff","Mor"]];
+function lineCol(){ try{ const c=localStorage.getItem("setprog.lineCol")||""; return LINE_COLORS.some(x=>x[0]===c)?c:""; }catch(e){ return ""; } }
 function noteHtml(s){ const n=Notes.get(s); return n?`<p class="scr-note">📝 ${esc(n)}</p>`:""; }
 function scriptBlocksHtml(found,ep){
   let html="";
@@ -1212,7 +1220,15 @@ function scriptBlocksHtml(found,ep){
 function openScriptSheet(title,body){
   try{ Reh.stop(); }catch(_){}
   const sb=$("#scriptBody"); sb.classList.remove("memo","reh");
-  sb.innerHTML=`<div class="scr-top"><div class="sd-k">${title}</div><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>`+body;
+  sb.innerHTML=`<div class="scr-top"><div class="sd-k">${title}</div><button class="nb-b scr-colbtn" id="scrCol" aria-label="Replik rengi" aria-expanded="false"><i></i></button><button class="nb-b nb-x" id="scrClose" aria-label="Kapat">✕</button></div>
+    <div class="cols scr-cols" id="scrCols" hidden>${LINE_COLORS.map(([c,n])=>`<button data-c="${c}" aria-label="${n}" style="--c:${c||"var(--accent)"}"></button>`).join("")}</div>`+body;
+  const applyLineCol=()=>{ const c=lineCol(); if(c) sb.style.setProperty("--me",c); else sb.style.removeProperty("--me");
+    $("#scrCol").querySelector("i").style.background=c||"var(--accent)";
+    $("#scrCols").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.c===c)); };
+  $("#scrCol").hidden=!sb.querySelector(".scr-cue.me");
+  $("#scrCol").onclick=()=>{ const box=$("#scrCols"); box.hidden=!box.hidden; $("#scrCol").setAttribute("aria-expanded",!box.hidden); };
+  $("#scrCols").querySelectorAll("button").forEach(b=>b.onclick=()=>{ try{ localStorage.setItem("setprog.lineCol",b.dataset.c); }catch(_){} applyLineCol(); $("#scrCols").hidden=true; $("#scrCol").setAttribute("aria-expanded","false"); });
+  applyLineCol();
   $("#scrClose").onclick=closeSheet;
   if(sb.querySelector(".scr-dlg.me")){
     sb.querySelector(".scr-top").insertAdjacentHTML("afterend",`<div class="scr-tools"><button id="scrMemo" aria-pressed="false">🙈 Ezber modu</button><button id="scrPlay">▶ Prova</button><button id="scrInk">🖍 İşaretle</button></div>`);
@@ -2085,7 +2101,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.23-5";
+const APP_VERSION="2026.11.23-6";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{

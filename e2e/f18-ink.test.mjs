@@ -148,3 +148,23 @@ test("F18-H5 dokunmatik: tek parmak çizer, ikinci parmak çizimi iptal edip kay
   assert.equal(r.afterPen, 2); assert.equal(r.afterFinger, 2, "kalem görülünce parmak çizmez");
   assert.ok(r.fingerScrolled > 30);
 });
+
+test("F18-H6 replik rengi: senaryoda kendi repliklerimin vurgu rengi seçilir ve hatırlanır", async () => {
+  const p = app.page;
+  await openScript(p);
+  const cue = p.locator("#scriptBody .scr-cue.me").first();
+  const yellow = await cue.evaluate((e) => getComputedStyle(e).color);
+  await p.getByRole("button", { name: "Replik rengi" }).click();
+  await p.locator("#scrCols").getByRole("button", { name: "Mavi" }).click(); await p.waitForTimeout(150);
+  assert.equal(await cue.evaluate((e) => getComputedStyle(e).color), "rgb(77, 163, 255)");
+  assert.notEqual(yellow, "rgb(77, 163, 255)");
+  assert.equal(await p.locator("#scrCols").isHidden(), true);
+  // remembered for the next script that is opened
+  await p.keyboard.press("Escape"); await p.waitForTimeout(300);
+  await scene(p, "10…16").locator(".chev").click(); await p.waitForTimeout(350);
+  await p.getByRole("button", { name: /Senaryoyu oku/ }).click(); await p.waitForTimeout(400);
+  assert.equal(await p.locator("#scriptBody .scr-cue.me").first().evaluate((e) => getComputedStyle(e).color), "rgb(77, 163, 255)");
+  await p.getByRole("button", { name: "Replik rengi" }).click();
+  await p.locator("#scrCols").getByRole("button", { name: "Sarı" }).click(); await p.waitForTimeout(150);
+  assert.equal(await p.locator("#scriptBody .scr-cue.me").first().evaluate((e) => getComputedStyle(e).color), yellow);
+});
