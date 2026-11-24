@@ -140,3 +140,26 @@ test("F17-H8 renk etiketi: detayda seçilir, kart o renkle işaretlenir, kalır,
   await p.locator("#sceneBody").getByRole("button", { name: "Renk yok" }).click(); await p.waitForTimeout(150);
   assert.equal(await p.locator("#main .scene.tag").count(), 0);
 });
+
+test("F17-H9 ertelenen sahne: iki güne yazılan sahne bir kez sayılır, kartlarda belirtilir", async () => {
+  const p = app.page;
+  await upload(p, ["haftalik.pdf", "ertesi.pdf"]);
+  const mon = p.locator("#day-2026-11-09"), tue = p.locator("#day-2026-11-10");
+  // Monday: 20 and 31 moved to Tuesday
+  assert.match(await scene(p, "20").innerText(), /Ertelendi → Sal 10 Kas/);
+  assert.equal(await mon.locator(".scene.postponed").count(), 2);
+  assert.match(await mon.locator(".dayhead").innerText(), /✓ 0\/2[\s\S]*↪ 2 ertelendi/);
+  assert.match(await tue.locator(".scene").first().innerText(), /Kalan sahne ← Pzt 9 Kas/);
+  // week summary counts each scene once: Mon 1-2A-3, 10…16, 20, 31 + Wed 50 = 5 (not 7)
+  assert.match(await p.locator("#sumToggle").innerText(), /^5\s/);
+  // shot on Tuesday -> one scene done; Monday's copy is not marked but shows the tick
+  await tue.locator(".scene").first().locator(".chev").click(); await p.waitForTimeout(350);
+  await p.getByRole("button", { name: "✓ Çekildi olarak işaretle" }).click(); await p.waitForTimeout(300);
+  assert.match(await scene(p, "20").innerText(), /Ertelendi → Sal 10 Kas ✓/);
+  assert.equal(await mon.locator(".scene.done").count(), 0, "pazartesi çekilmiş sayılmaz");
+  await p.locator("#wkToggle").click(); await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /Sezon özeti/ }).click(); await p.waitForTimeout(300);
+  const t = await p.locator("#dayBody").innerText();
+  assert.match(t, /3\s*set günü/); assert.match(t, /5\s*sahne/); assert.match(t, /1\s*çekildi/);
+  assert.match(t, /Kalan: 4 sahne · 7,25 sayfa · 2 sahne birden fazla güne yazıldı, bir kez sayıldı/);
+});

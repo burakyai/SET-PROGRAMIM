@@ -422,6 +422,10 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
 .scr-cols{margin:0 0 10px}
 .scr-cols[hidden],.scr-top .scr-colbtn[hidden]{display:none}
 .scr-cols button{width:34px;height:34px}
+.scene .carry{color:var(--accent-t);font-weight:700}
+.scene.postponed>.no,.scene.postponed>.body .set,.scene.postponed>.body .sum{opacity:.5}
+.st-left{font-size:13px;color:var(--mute);margin:8px 2px 0;line-height:1.45}
+.st-left b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -1125,6 +1129,17 @@ const Tags={ map:(()=>{ try{ return JSON.parse(localStorage.getItem("setprog.tag
     try{ localStorage.setItem("setprog.tags",JSON.stringify(this.map)); }catch(e){}
     syncMarks(); } };
 function tagAttr(s){ const c=Tags.get(s); return c?` style="--tag:${c}"`:""; }
+// the same scene on several days (carried over, or continued): identified by episode + scene number
+function sid(s){ const e=epRaw(s); return e ? e+"|"+s.sceneNo : ""; }
+function carryDates(s){ const id=sid(s); if(!id) return []; const out=[];
+  Object.keys(S.days).sort().forEach(k=>{ if((S.days[k].scenes||[]).some(x=>sid(x)===id)) out.push(k); }); return out; }
+function carryOf(k,s){ const ds=carryDates(s); const next=ds.find(d=>d>k)||null; let prev=null; ds.forEach(d=>{ if(d<k) prev=d; });
+  const copyDone=d=>{ const day=S.days[d]; const c=(day.scenes||[]).find(x=>sid(x)===sid(s)); return !!(c && isDone(day,c)); };
+  return {next, prev, postponed: !!next && !isDone(S.days[k],s), prevDone: prev?copyDone(prev):false, nextDone: next?copyDone(next):false}; }
+// each scene once (its latest listing decides whether it is shot); used by the summaries
+function uniqueScenes(keys){ const map=new Map();
+  keys.forEach(k=>{ const day=S.days[k]; (day&&day.scenes||[]).forEach((x,i)=>{ const id=sid(x)||(k+"#"+i); const o=map.get(id)||{days:[]}; o.s=x; o.k=k; o.days.push(k); map.set(id,o); }); });
+  return [...map.values()].map(o=>({s:o.s,k:o.k,days:o.days,done:isDone(S.days[o.k],o.s)})); }
 function pagesNum(p){ const m=String(p||"").replace(",",".").match(/\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
 function epRaw(s){ return String(s.blm || (String(s.extra||"").match(/Bölüm:\s*([^\n·]+)/)||[])[1] || "").trim(); }
 function episodeOf(s){ return epRaw(s); }
@@ -1312,9 +1327,10 @@ function pageNum(p){ const t=String(p||"").trim().replace(",","."); if(!t) retur
 function fmtNum(n){ return (Math.round(n*100)/100).toString().replace(".",","); }
 function weekSummary(dates,today){
   const counts=dates.map(d=>{ const day=S.days[iso(d)]; return day? (day.scenes||[]).length : null; });
-  const total=counts.reduce((a,c)=>a+(c||0),0);
+  const uniq=uniqueScenes(dates.map(iso).filter(k=>S.days[k]));
+  const total=uniq.length;
   const pagesOf=d=>((S.days[iso(d)]?.scenes)||[]).reduce((x,s)=>x+pageNum(s.pages),0);
-  const pages=dates.reduce((a,d)=>a+pagesOf(d),0);
+  const pages=uniq.reduce((a,u)=>a+pageNum(u.s.pages),0);
   const workDays=counts.filter(c=>c).length;
   const max=Math.max(1,...counts.map(c=>c||0));
   const who=S.character? esc(S.character.split(",")[0].trim()) : "Senin";
@@ -1386,8 +1402,9 @@ function render(){
       if(day.callTime) tags.push(`<span class="tag y">⏰ ${esc(day.callTime)}${day.setTime&&day.setTime!==day.callTime?" <span style=\"color:var(--mute)\">(set "+esc(day.setTime)+")</span>":""}</span>`);
       if(day.location) tags.push(`<span class="tag">📍 ${esc(day.location)}</span>`);
       tags.push(`<span class="tag y">🎬 ${day.scenes?.length||0} sahnen${day.totalScenes?` <span style="color:var(--mute)">/ ${day.totalScenes}</span>`:""}</span>`);
-      { const n=day.scenes?.length||0, dn=(day.scenes||[]).filter(x=>x.done).length;
-        if(n) tags.push(`<span class="tag prog" style="color:var(--green)">✓ ${dn}/${n}<i><b style="width:${Math.round(dn/n*100)}%"></b></i></span>`); }
+      { const all0=day.scenes||[]; const pp=all0.filter(x=>carryOf(k,x).postponed).length; const n=all0.length-pp, dn=all0.filter(x=>x.done).length;
+        if(all0.length) tags.push(`<span class="tag prog" style="color:var(--green)">✓ ${dn}/${n}${n?`<i><b style="width:${Math.round(dn/n*100)}%"></b></i>`:""}</span>`);
+        if(pp) tags.push(`<span class="tag">↪ ${pp} ertelendi</span>`); }
       if(tags.length) html+=`<div class="meta">${tags.join("")}</div>`;
       if(day.rev) revHtml=revBanner(k,day.rev);
     }
@@ -1411,8 +1428,11 @@ function render(){
         if(s.time) ln.push("⏱ "+esc(s.time));
         if(s.uncertain) ln.push("<span style=\"color:var(--accent-t)\">? teyit et</span>");
         if(Notes.get(s)) ln.push("📝 not");
+        const cy=carryOf(k,s);
+        if(cy.next) ln.push(`<span class="carry">${cy.postponed?"Ertelendi":"Devamı"} → ${esc(dayShort(cy.next))}${cy.postponed&&cy.nextDone?" ✓":""}</span>`);
+        if(cy.prev) ln.push(`<span class="carry">${cy.prevDone?"Devam":"Kalan sahne"} ← ${esc(dayShort(cy.prev))}</span>`);
         const fx=cardFx(k,s);
-        html += `<button class="scene${s.done?" done":""}${fx.cls}${Tags.get(s)?" tag":""}"${tagAttr(s)} data-scene="${k}|${i}">
+        html += `<button class="scene${s.done?" done":""}${cy.postponed?" postponed":""}${fx.cls}${Tags.get(s)?" tag":""}"${tagAttr(s)} data-scene="${k}|${i}">
           ${(()=>{const n=shortNo(s.sceneNo);const c=n.txt.length>7?"s":n.txt.length>4?"m":"";return `<div class="no"><b class="${c}">${esc(n.txt)}</b><span>${n.cnt?esc(n.cnt):"Sahne"}</span></div>`;})()}
           <div class="body">${day.rev?.added?.includes(s.sceneNo)?`<span class="pill new">YENİ</span> `:""}${fx.pill}<div class="set">${esc(s.set||"Sahne "+(s.sceneNo||""))}</div>
           ${ln.length?`<div class="ln">${ln.join(" · ")}</div>`:""}
@@ -1571,16 +1591,17 @@ function showPartner(name){
   openSheet($("#daySheet"));
 }
 function showStats(){
-  const eps={}; const partners={}; let days=0, scenes=0, pages=0, done=0; const names=myNames();
-  Object.keys(S.days).sort().forEach(k=>{ const day=S.days[k]; const list=day.scenes||[]; if(!list.length) return; days++;
-    list.forEach(s=>{ scenes++; const pg=pagesNum(s.pages); pages+=pg; const dn=isDone(day,s); if(dn) done++;
-      const e=epRaw(s)||"?"; const o=eps[e]||(eps[e]={scenes:0,pages:0,done:0,days:new Set()}); o.scenes++; o.pages+=pg; if(dn) o.done++; o.days.add(k);
-      (s.characters||[]).forEach(c=>{ if(names.length && window.SetParser.castMatches(c,names)) return; const u=upTR(c).replace(/\s*\?$/,""); if(u) partners[u]=(partners[u]||0)+1; }); }); });
+  const eps={}; const partners={}; let scenes=0, pages=0, done=0, leftPages=0, moved=0; const names=myNames();
+  const keys=Object.keys(S.days).sort(); const days=keys.filter(k=>(S.days[k].scenes||[]).length).length;
+  uniqueScenes(keys).forEach(u=>{ const sc=u.s; scenes++; const pg=pagesNum(sc.pages); pages+=pg; if(u.done) done++; else leftPages+=pg; if(u.days.length>1) moved++;
+    const e=epRaw(sc)||"?"; const o=eps[e]||(eps[e]={scenes:0,pages:0,done:0,days:new Set()}); o.scenes++; o.pages+=pg; if(u.done) o.done++; u.days.forEach(d=>o.days.add(d));
+    (sc.characters||[]).forEach(c=>{ if(names.length && window.SetParser.castMatches(c,names)) return; const n=upTR(c).replace(/\s*\?$/,""); if(n) partners[n]=(partners[n]||0)+1; }); });
   const f=n=>String(Math.round(n*100)/100).replace(".",",");
   const epKeys=Object.keys(eps).sort((a,b)=>(parseInt(b)||0)-(parseInt(a)||0));
   const top=Object.entries(partners).sort((a,b)=>b[1]-a[1]).slice(0,6);
   $("#dayBody").innerHTML=`<h2>Sezon özeti</h2><p class="hint">Yüklü programlara göre${S.character?" · "+esc(S.character):""}</p>
     <div class="stats"><div><b>${days}</b><span>set günü</span></div><div><b>${scenes}</b><span>sahne</span></div><div><b>${f(pages)}</b><span>sayfa</span></div><div><b>${done}</b><span>çekildi</span></div></div>
+    ${scenes?`<p class="st-left">Kalan: <b>${scenes-done}</b> sahne${leftPages?` · ${f(leftPages)} sayfa`:""}${moved?` · ${moved} sahne birden fazla güne yazıldı, bir kez sayıldı`:""}</p>`:""}
     ${epKeys.length?`<h3 class="st-h">Bölümlere göre</h3><div class="st-t">${epKeys.map(e=>`<div class="st-r"><span>${esc(/^\d+$/.test(e)?e+". bölüm":e==="?"?"Bölümü yok":"Bölüm "+e)}</span><span>${eps[e].scenes} sahne</span><span>${f(eps[e].pages)} sf</span><span>${eps[e].days.size} gün</span></div>`).join("")}</div>`:""}
     ${top.length?`<h3 class="st-h">En çok birlikte oynadıkların</h3><div class="chars">${top.map(([n,c])=>`<button data-partner="${esc(n)}">${esc(n)} · ${c}</button>`).join("")}</div>`:""}
     ${scenes?"":`<p class="hint">Henüz sahnen yok. Program yükleyince burası dolar.</p>`}`;
@@ -2101,7 +2122,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.23-6";
+const APP_VERSION="2026.11.24-1";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{

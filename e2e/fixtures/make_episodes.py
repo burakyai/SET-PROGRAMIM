@@ -43,7 +43,22 @@ def script(path, title, scenes):
     c.showPage(); c.save()
 
 
+def next_day(path):
+    """Tuesday's program: scenes 20 and 31 could not be shot on Monday and come back."""
+    c = canvas.Canvas(str(path), pagesize=(F.W, F.H))
+    F.day_title(c, 564, "10 KASIM SALI")
+    F.team(c, 549, "1. EKİP")
+    F.header(c, 538)
+    y = 520
+    F.row(c, y, "5", "2", "20", "0,25", "DIŞ/GECE", "İSKELE", "KAPTAN-NAZLI", "İSKELEDE SON KONUŞMA; GECE, RÜZGAR."); y -= 18
+    F.row(c, y, "5", "2", "31", "0,75", "İÇ/GÜN", "KAPTAN TEKNE", "KAPTAN", "KAPTAN TEK BAŞINA AĞ ÖRER."); y -= 18
+    F.row(c, y, "5", "3", "40", "1", "İÇ/GÜN", "OKUL", "HATİCE-MEHMET", "MEHMET DERSE GEÇ KALIR."); y -= 18
+    F.total(c, y, "2")
+    c.showPage(); c.save()
+
+
 if __name__ == "__main__":
+    next_day(OUT / "ertesi.pdf")
     program(OUT / "karisik.pdf")
     # episode 4 has a scene 20 at the pier; episode 5 also has a 20 elsewhere (same number, other place)
     script(OUT / "senaryo-4.pdf", "4.BÖLÜM", {
