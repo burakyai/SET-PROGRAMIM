@@ -8,12 +8,35 @@
 <meta name="theme-color" content="#0e0d0c">
 <meta http-equiv="Cache-Control" content="no-cache">
 <title>Set Programım</title>
+<script>
+/* Web sürümü kapalı: github.io adresinde uygulama yerine App Store yönlendirmesi gösterilir. */
+(function(){
+  if(!/(^|\.)github\.io$/.test(location.hostname)) return;
+  window.__moved=true;
+  try{ if(navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}); }catch(e){}
+  try{ if(window.caches) caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});}); }catch(e){}
+  var html='<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0e0d0c"><title>Set Pro</title>'
+   +'<style>html,body{margin:0;height:100%;background:#0e0d0c;color:#f3efe8;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}'
+   +'main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;box-sizing:border-box}'
+   +'img{width:96px;height:96px;border-radius:22px;margin-bottom:24px}h1{font-size:26px;margin:0 0 10px}p{color:#9a948a;font-size:16px;line-height:1.5;margin:0 0 28px;max-width:320px}'
+   +'a.btn{display:inline-block;background:#f5c518;color:#1a1500;font-weight:700;font-size:17px;text-decoration:none;padding:15px 26px;border-radius:14px}'
+   +'nav{margin-top:28px;font-size:13px}nav a{color:#9a948a;margin:0 8px}</style></head>'
+   +'<body><main id="moved"><img src="apple-touch-icon.png" alt=""><h1>Set Pro App Store\'a ta\u015f\u0131nd\u0131</h1>'
+   +'<p>Web s\u00fcr\u00fcm\u00fc kapand\u0131. Uygulamay\u0131 iPhone\'una App Store\'dan indirebilirsin.</p>'
+   +'<a class="btn" href="https://apps.apple.com/tr/app/id6832692165">App Store\'da a\u00e7</a>'
+   +'<nav><a href="gizlilik.html">Gizlilik</a><a href="destek.html">Destek</a></nav></main></body>';
+  function show(){ document.documentElement.innerHTML=html; }
+  try{ window.stop(); }catch(e){}
+  show(); document.addEventListener("DOMContentLoaded",function(){ if(!document.getElementById("moved")||document.body.children.length>1) show(); });
+})();
+</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-title" content="Set Programım">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script>
+if(window.__moved) throw new Error("moved");
 (function(){var t="auto";try{t=localStorage.getItem("setprog.theme")||"auto";}catch(e){}
 var mq=window.matchMedia&&matchMedia("(prefers-color-scheme: light)");
 var r=t==="auto"?(mq&&mq.matches?"light":"dark"):t;
@@ -561,6 +584,7 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
 <div class="toast" id="toast"></div>
 
 <script>
+if(window.__moved) throw new Error("moved");
 /* Set programı (OGM / Excel call sheet) parser — pure JS, works in browser and node.
    Input: pages = [{w,h,items:[{s,x,y,w,h}]}]  (pdf.js text items, y = baseline, PDF coords: y grows upward)
    Output: {days:[{date, dayLabel, callTime, team, totalScenes, scenes:[...]}], warnings:[]}
@@ -795,6 +819,7 @@ if(typeof module!=="undefined" && module.exports) module.exports=api; else root.
 
 </script>
 <script>
+if(window.__moved) throw new Error("moved");
 /* Senaryo okuyucu: Final Draft / LibreOffice çıkışı Türkçe senaryo PDF'i -> sahneler.
    Girdi: pages = [{w,h,items:[{s,x,y,w,h}]}] (pdf.js metin parçaları)
    Çıktı: {episode, scenes:[{no, heading, blocks:[{t:"action"|"cue"|"dlg"|"paren", text}]}]}
@@ -921,6 +946,7 @@ if(typeof module!=="undefined" && module.exports) module.exports=api; else root.
 
 </script>
 <script>
+if(window.__moved) throw new Error("moved");
 (() => {
 "use strict";
 const $ = s => document.querySelector(s);
@@ -2153,7 +2179,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.27-2";
+const APP_VERSION="2026.11.27-3";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
