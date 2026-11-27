@@ -437,6 +437,7 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
 .sub-links{display:flex;gap:16px;justify-content:center;margin:4px 0 6px}
 .sub-links a{font-size:12.5px;color:var(--accent-t);-webkit-touch-callout:default}
 #subBody .btn{margin-top:10px}
+.freenote{font-size:12.5px;color:var(--accent-t);margin:10px 2px 0;font-weight:600}
 </style>
 </head>
 <body>
@@ -493,6 +494,7 @@ textarea.ink-in{position:absolute;z-index:3;width:150px;min-height:30px;box-sizi
   <input type="date" id="fallbackDate">
   <label class="check"><input type="checkbox" id="replaceChk" checked> Aynı günün eski programını yenisiyle değiştir</label>
   <button class="btn" id="btnParse" disabled>Programı Oku</button>
+  <p class="freenote" id="freeNote" hidden></p>
   <div class="status" id="status"><div class="spin"></div><div id="statusTxt">Okunuyor…</div></div>
 </div>
 
@@ -1750,11 +1752,11 @@ function openUpload(){
   pickerMode();
   $("#charIn").value=S.character;
   if(!$("#fallbackDate").value) $("#fallbackDate").value=S.selected||iso(new Date());
-  setStatus(false); renderFiles();
+  setStatus(false); renderFiles(); Sub.note();
   openSheet($("#upSheet"));
 }
-// uploading your own program or script needs the subscription in the iPhone app (the sample stays free)
-$("#fab").onclick=async()=>{ if(await Sub.check()) openUpload(); else Sub.show(); };
+// (the subscription check happens when the files are read: see Sub.gate)
+$("#fab").onclick=()=>openUpload();
 $("#fileIn").addEventListener("change",e=>{ S.files.push(...e.target.files); e.target.value=""; renderFiles(); });
 function renderFiles(){
   $("#fileList").innerHTML=S.files.map((f,i)=>`<div class="file"><span>${f.type==="application/pdf"?"📄":"🖼️"} ${esc(f.name)}</span><button data-rm="${i}">✕</button></div>`).join("");
@@ -2009,8 +2011,7 @@ $("#btnParse").onclick=async()=>{
       if(!total){
         const sc=window.ScriptParser.parse(pages,{fileName:f.name});
         if(sc.scenes.length>=3 && sc.episode){
-          await Scripts.put({episode:sc.episode, aliases:sc.aliases||[], name:f.name, scenes:sc.scenes, added:new Date().toISOString()});
-          newScripts.push(sc); continue;
+          sc.name=f.name; newScripts.push(sc); continue;
         }
         unreadPdfs.push(f);
         const words=pages.reduce((a,pg)=>a+pg.items.length,0);
@@ -2079,6 +2080,11 @@ $("#btnParse").onclick=async()=>{
       const shift=Math.round((mondayOf(new Date()).getTime()-mondayOf(parseIso(first)).getTime())/864e5);
       all.forEach(o=>{ const d=parseIso(o.date); d.setDate(d.getDate()+shift); o.date=iso(d); o.sourceName="Örnek program"; });
     }
+    // first program and first script are free in the iPhone app; after that the subscription is needed
+    const gate=S.demo ? null : await Sub.gate(all.length>0, newScripts.length>0);
+    if(gate){ S.busy=false; renderFiles(); setStatus(false); Sub.show(gate); return; }
+    for(const sc of newScripts) await Scripts.put({episode:sc.episode, aliases:sc.aliases||[], name:sc.name, scenes:sc.scenes, added:new Date().toISOString()});
+    if(!S.demo) Sub.used(all.length>0, newScripts.length>0);
     if(!all.length && newScripts.length && !unreadPdfs.length && !imgs.length){
       S.busy=false; S.files=[]; renderFiles(); closeSheet(); render();
       toast(newScripts.map(x=>`${epName(x.episode)} senaryosu eklendi · ${x.scenes.length} sahne`).join(" · "),3600);
@@ -2147,7 +2153,7 @@ $("#btnParse").onclick=async()=>{
 })();
 
 /* ---------- auto update (GitHub Pages) ---------- */
-const APP_VERSION="2026.11.27-1";
+const APP_VERSION="2026.11.27-2";
 async function checkUpdate(){
   if(!/github\.io$/.test(location.hostname)) return;
   try{
@@ -2199,6 +2205,8 @@ pickerMode();
    People who bought the paid 1.0 keep everything without subscribing. */
 const SUB_IDS=["com.burakyoruk.setprogramim.haftalik","com.burakyoruk.setprogramim.aylik"];
 const SUB_FIRST_BUILD=134;
+// the app was a paid download until this moment; whoever got it before keeps everything
+const PAID_UNTIL="2026-11-28T00:00:00+03:00";
 const EULA_URL="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 const PRIVACY_URL="https://burakyai.github.io/SET-PROGRAMIM/gizlilik.html";
 const Sub={ products:null, busy:false, fresh:false,
@@ -2213,7 +2221,7 @@ const Sub={ products:null, busy:false, fresh:false,
   async refresh(){ if(!this.native()) return;
     if(!this.c.legacy && !this.c.legacyChecked){
       try{ const r=await this.call("getAppTransaction"); const at=r&&r.appTransaction;
-        if(at){ this.c.legacy = at.environment==="Production" && parseInt(at.originalAppVersion,10)<SUB_FIRST_BUILD; this.c.legacyChecked=true; } }catch(e){ console.warn("abonelik: uygulama kaydı okunamadı",e); } }
+        if(at){ this.c.legacy = at.environment==="Production" && parseInt(at.originalAppVersion,10)<SUB_FIRST_BUILD && new Date(at.originalPurchaseDate).getTime()<new Date(PAID_UNTIL).getTime(); this.c.legacyChecked=true; } }catch(e){ console.warn("abonelik: uygulama kaydı okunamadı",e); } }
     try{ const r=await this.call("getPurchases",{onlyCurrentEntitlements:true});
       let until=null, pid=null;
       ((r&&r.purchases)||[]).forEach(p=>{ if(!SUB_IDS.includes(p.productIdentifier) || p.revocationDate || p.isActive===false || !p.expirationDate) return;
@@ -2221,6 +2229,16 @@ const Sub={ products:null, busy:false, fresh:false,
       this.c.until=until; this.c.pid=pid; this.fresh=true;
     }catch(e){ console.warn("abonelik: satın alımlar okunamadı",e); }
     this.save(); this.ui(); },
+  free(){ try{ return JSON.parse(localStorage.getItem("setprog.free")||"{}")||{}; }catch(e){ return {}; } },
+  used(prog,script){ if(!this.native()) return; const f=this.free(); if(prog) f.prog=true; if(script) f.script=true; try{ localStorage.setItem("setprog.free",JSON.stringify(f)); }catch(e){} },
+  // returns what is blocked ("prog" | "script" | "both") or null when the upload may go ahead
+  async gate(prog,script){ if(!this.native() || (!prog && !script)) return null; const f=this.free();
+    const needP=prog && f.prog, needS=script && f.script; if(!needP && !needS) return null;
+    if(await this.check()) return null; return needP&&needS?"both":needP?"prog":"script"; },
+  note(){ const n=$("#freeNote"); if(!n) return; if(!this.native() || this.entitled()){ n.hidden=true; return; } const f=this.free();
+    n.hidden=false; n.textContent = !f.prog&&!f.script ? "İlk programın ve ilk senaryon ücretsiz."
+      : f.prog&&f.script ? "Ücretsiz program ve senaryo hakkını kullandın. Yenisini yüklemek için abonelik gerekir."
+      : f.prog ? "Ücretsiz program hakkını kullandın; ilk senaryon hâlâ ücretsiz." : "Ücretsiz senaryo hakkını kullandın; ilk programın hâlâ ücretsiz."; },
   async check(){ if(this.entitled()) return true; if(!this.native()) return true;
     await Promise.race([this.refresh(), new Promise(r=>setTimeout(r,6000))]); return this.entitled(); },
   async load(){ if(this.products) return this.products;
@@ -2232,10 +2250,14 @@ const Sub={ products:null, busy:false, fresh:false,
   trial(p){ const ip=p.introductoryPrice; if(!ip || p.introEligibility===1 || (ip.price||0)>0) return "";
     const n=(ip.period&&ip.period.numberOfUnits)||0, u=ip.period?ip.period.unit:0; const days=u===1?n*7:u===0?n:0;
     return days?`${days} gün`:(n?`${n} ${u===2?"ay":"yıl"}`:""); },
-  async show(){ const body=$("#subBody"); this.pick=this.pick||SUB_IDS[1];
+  async show(why){ const body=$("#subBody"); this.pick=this.pick||SUB_IDS[1];
+    const lead= why==="prog" ? "İlk programın ücretsizdi. Yeni program yüklemek için abonelik gerekir."
+      : why==="script" ? "İlk senaryon ücretsizdi. Yeni senaryo yüklemek için abonelik gerekir."
+      : why==="both" ? "Ücretsiz program ve senaryo hakkını kullandın. Yenilerini yüklemek için abonelik gerekir."
+      : "İlk programın ve ilk senaryon ücretsiz. Sonraki yüklemeler için abonelik gerekir.";
     body.innerHTML=`<h2>Set Pro Premium</h2>
-      <p class="hint">Kendi set programını ve senaryonu yüklemek için abonelik gerekir. Örnek program her zaman ücretsiz.</p>
-      <ul class="sub-f"><li>Set programın: sadece senin sahnelerin, gün gün</li><li>Senaryo, ezber modu ve prova</li><li>İşaretleme, notlar, revize farkı, hatırlatma</li></ul>
+      <p class="hint">${lead} Yüklediklerin ve örnek program her zaman açık kalır.</p>
+      <ul class="sub-f"><li>Her hafta yeni programını ve senaryonu yükle</li><li>Senaryo, ezber modu ve prova</li><li>İşaretleme, notlar, revize farkı, hatırlatma</li></ul>
       <div id="subPlans"><p class="hint">Planlar yükleniyor…</p></div>
       <button class="btn" id="subBuy" disabled>Devam</button>
       <p class="sub-legal" id="subLegal"></p>
@@ -2256,7 +2278,7 @@ const Sub={ products:null, busy:false, fresh:false,
   async buy(p){ if(this.busy) return; this.busy=true; const buy=$("#subBuy"); if(buy){ buy.disabled=true; buy.textContent="Apple'a bağlanılıyor…"; }
     try{ await this.call("purchaseProduct",{productIdentifier:p.identifier,productType:"subs",quantity:1});
       this.fresh=false; await this.refresh();
-      if(this.entitled()){ closeSheet(); toast("Aboneliğin başladı 🎬",3200); setTimeout(openUpload,400); }
+      if(this.entitled()){ closeSheet(); toast("Aboneliğin başladı 🎬",3200); setTimeout(()=>{ openUpload(); if(S.files.length && !S.busy) $("#btnParse").onclick(); },400); }
       else toast("Satın alma tamamlanamadı. Birazdan tekrar dene.",4000);
     }catch(e){ const m=String((e&&e.message)||e||""); if(!/cancel/i.test(m)) toast(/pending/i.test(m)?"Satın alma onay bekliyor":"Satın alma yapılamadı",4000); }
     this.busy=false; if($("#subPlans") && this.products && openSheetEl===$("#subSheet")) this.plans(); },
@@ -2267,7 +2289,7 @@ const Sub={ products:null, busy:false, fresh:false,
     const st=$("#subState"); const act=this.c.until && new Date(this.c.until)>new Date();
     st.textContent=this.c.legacy ? "Uygulamayı satın aldığın için tüm özellikler sende; abonelik gerekmez."
       : act ? `${this.c.pid===SUB_IDS[0]?"Haftalık":"Aylık"} abonelik etkin · ${new Date(this.c.until).toLocaleDateString("tr-TR",{day:"numeric",month:"long"})} tarihinde yenilenir ya da biter.`
-      : "Abonelik yok. Kendi programını yüklemek için abone olabilirsin.";
+      : "Abonelik yok. İlk programın ve ilk senaryon ücretsiz; sonrakiler için abone olabilirsin.";
     $("#subOpen").hidden=!!this.c.legacy||act; $("#subManage").hidden=!act; $("#subRestore").hidden=!!this.c.legacy; }
 };
 $("#subOpen").onclick=()=>Sub.show();
